@@ -59,3 +59,5 @@ if __name__ == "__main__":
     ss = StateSpace(2,bounds,deltas)
     for i, state in ss:
         print(i, state)
+    i = ss.toIndex(np.array([-1.0,0.25]))
+    print(ss.toState(i))
