@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-class StatePF(ABC): #pi(x_k)
-    """A StatePF is a probability distribution over the state space."""
-    pass
 
 class StateCondPF(ABC): #pi(x_k|x_k-1)
     """An StateCondPF is a conditional PF that describes the behavior of a system at a given time."""
@@ -61,8 +58,3 @@ class ServiceSet(ABC):
         for service in self.services:
             behavior_set.add(service.generate_behavior(x_0))
     
-# class ContinuousPolicy(ABC):
-#     pass
-
-# class DiscretePolicy(ABC):
-#     pass
