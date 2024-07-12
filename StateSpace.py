@@ -1,3 +1,5 @@
+import numpy as np
+
 class StateSpace:
     """StateSpace provides a representation for the (discretized) state space over which PFs are defined"""
 
