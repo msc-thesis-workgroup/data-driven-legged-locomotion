@@ -20,7 +20,7 @@ class StateSpace:
         max_index = np.prod(self.dims) - 1
         if self._iter_state > max_index:
             raise StopIteration
-        index = np.asarray(np.unravel_index(self._iter_state, self.dims))
+        index = np.unravel_index(self._iter_state, self.dims)
         self._iter_state += 1
         return (index, self.toState(index))
 
@@ -37,21 +37,24 @@ class StateSpace:
         #     linspaces.append(np.linspace(self.bounds[i,0],self.bounds[i,1],num=self.dims[i], endpoint=True))
         # self.X = np.stack(np.meshgrid(*linspaces,indexing='xy'))
 
-    def toIndex(self, state: np.array):
+    def toIndex(self, state: np.array) -> tuple:
         """Converts a state to an index in the state space."""
         if len(state) != self.n_states:
             raise ValueError("State has the wrong dimension.")
         if np.any(state < self.bounds[:,0]) or np.any(state > self.bounds[:,1]):
             raise ValueError("State out of bounds.")
-        return np.rint((state - self.bounds[:,0]) / self.deltas) # Round to closest cell
+        res = np.empty(self.n_states, dtype=int)
+        res = tuple(np.rint((state - self.bounds[:,0]) / self.deltas, out=res, casting='unsafe')) # Round to closest cell
+        return res
     
-    def toState(self, index: np.array):
+    def toState(self, index: tuple):
         """Converts an index to a state in the state space."""
+        index_arr = np.array(index)
         if len(index) != self.n_states:
             raise ValueError("Index has the wrong dimension.")
-        if np.any(index < 0) or np.any(index >= self.dims):
+        if np.any(index_arr < 0) or np.any(index_arr >= self.dims):
             raise ValueError("Index out of bounds.")
-        return self.bounds[:,0] + index * self.deltas
+        return self.bounds[:,0] + index_arr * self.deltas
     
 if __name__ == "__main__":
     bounds = np.array([[-1.0,1.0],[0.0,1.0]])
@@ -60,4 +63,5 @@ if __name__ == "__main__":
     for i, state in ss:
         print(i, state)
     i = ss.toIndex(np.array([-1.0,0.25]))
+    print(i)
     print(ss.toState(i))
