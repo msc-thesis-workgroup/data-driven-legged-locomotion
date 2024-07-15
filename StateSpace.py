@@ -10,7 +10,7 @@ class StateSpace:
             raise("Dimension vector must have the same size of the ranges vector")
         self.n_states = n_states
         self.bounds = bounds
-        self.buildStateSpace(max_deltas)
+        self._buildStateSpace(max_deltas)
 
     def __iter__(self):
         self._iter_state = 0
@@ -27,8 +27,12 @@ class StateSpace:
     @property
     def ranges(self):
         return self.bounds[:,1] - self.bounds[:,0]
+    
+    @property
+    def total_combinations(self):
+        return np.prod(self.dims)
 
-    def buildStateSpace(self, max_deltas):
+    def _buildStateSpace(self, max_deltas):
         self.dims = self.ranges / max_deltas # Element-wise division
         self.dims = np.ceil(self.dims).astype(int) + 1 # If the division is not an integer, we increase the resolution to make the space uniform
         self.deltas = self.ranges / (self.dims-1) # The actual sampling resolution
