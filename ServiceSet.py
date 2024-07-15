@@ -22,19 +22,22 @@ class Service(ABC):
         self.ss = ss
     
     @abstractmethod
-    def _generateBehavior(self, initial_state_index: tuple) -> Behavior:
+    def _generateBehavior(self, initial_state_index: tuple, N: int) -> Behavior:
         """Generates a behavior for the given state."""
         pass
     
-    def generateBehavior(self, state: np.array) -> Behavior:
+    def generateBehavior(self, state: np.array, N: int) -> Behavior:
         """Generates a behavior for the given state."""
-        return self._generateBehavior(self.ss.toIndex(state))
+        return self._generateBehavior(self.ss.toIndex(state), N)
 
 class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
     def __init__(self, ss: StateSpace, N: int):
         self.ss = ss
         self.behaviors: list[Behavior] = []
         self.N = N
+    
+    def __len__(self):
+        return len(self.behaviors)
     
     @property
     def S(self):
@@ -48,6 +51,10 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
             raise ValueError("Behavior time window does not match the time window of the BehaviorSet.")
         self.behaviors.append(behavior)
         
+    def getAtTime(self, k: int) -> list[StateCondPF]:
+        """Returns the state conditional probability distributions at time k."""
+        return [behavior.getAtTime(k) for behavior in self.behaviors]
+        
     def f(self):
         for k in range(self.N, 0, -1):
             for s in self.S:
@@ -58,6 +65,9 @@ class ServiceSet:
     def __init__(self, ss: StateSpace):
         self.ss = ss
         self.services: list[Service] = []
+        
+    def __len__(self):
+        return len(self.services)
     
     def addService(self, service: Service):
         """Adds a service to the set."""
@@ -69,9 +79,9 @@ class ServiceSet:
         """Returns the number of services."""
         return len(self.services)
     
-    def getBehaviors(self, x_0: np.array) -> BehaviorSet:
+    def getBehaviors(self, x_0: np.array, N: int) -> BehaviorSet:
         behavior_set = BehaviorSet()
         for service in self.services:
-            behavior_set.add(service.generateBehavior(x_0))
+            behavior_set.add(service.generateBehavior(x_0, N))
         return behavior_set
     
