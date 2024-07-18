@@ -54,11 +54,6 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
     def getAtTime(self, k: int) -> list[StateCondPF]:
         """Returns the state conditional probability distributions at time k."""
         return [behavior.getAtTime(k) for behavior in self.behaviors]
-        
-    def f(self):
-        for k in range(self.N, 0, -1):
-            for s in self.S:
-                self.behaviors[s].getAtTime(k)
 
 class ServiceSet:
     """Abstract class for a set of services."""
