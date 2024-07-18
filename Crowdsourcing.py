@@ -69,3 +69,7 @@ class CrowdsourcingBase(ABC):
                     exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
                     self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
                 self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
+                
+class MaxEntropyCrowdsouring(CrowdsourcingBase):
+    def _get_DKL(self, pi: StatePF) -> float:
+        return -pi.getEntropy()
