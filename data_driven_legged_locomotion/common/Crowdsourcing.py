@@ -71,5 +71,8 @@ class CrowdsourcingBase(ABC):
                 self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
                 
 class MaxEntropyCrowdsouring(CrowdsourcingBase):
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
+        super().__init__(ss, services, cost, N)
+    
     def _get_DKL(self, pi: StatePF) -> float:
         return -pi.getEntropy()

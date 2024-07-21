@@ -14,6 +14,8 @@ class Behavior(ABC): #{pi(x_k|x_k-1)}_0:N
     
     def getAtTime(self, k: int) -> StateCondPF:
         """Returns the state conditional probability distribution at time k."""
+        if k < 0 or k > self.N - 1:
+            raise ValueError(f"Time index k must be between 0 and {self.N-1}.")
         return self.time_window[k]
 
 class Service(ABC):
@@ -75,8 +77,12 @@ class ServiceSet:
         return len(self.services)
     
     def getBehaviors(self, x_0: np.array, N: int) -> BehaviorSet:
-        behavior_set = BehaviorSet()
+        behavior_set = BehaviorSet(self.ss, N)
         for service in self.services:
             behavior_set.add(service.generateBehavior(x_0, N))
         return behavior_set
     
+class SingleBehavior(Behavior):
+    def __init__(self, ss: StateSpace, behavior: StateCondPF):
+        super().__init__(ss, 1)
+        self.time_window.append(behavior)
