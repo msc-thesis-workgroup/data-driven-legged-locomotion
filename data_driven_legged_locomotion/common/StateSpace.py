@@ -43,12 +43,17 @@ class StateSpace:
 
     def toIndex(self, state: np.array) -> tuple:
         """Converts a state to an index in the state space."""
-        if len(state) != self.n_states:
-            raise ValueError("State has the wrong dimension.")
+        if len(state.shape) == 1:
+            state = np.expand_dims(state, axis=0)
+        if state.shape[1] != self.n_states:
+            raise ValueError("Axis 1 has the wrong size.")
         if np.any(state < self.bounds[:,0]) or np.any(state > self.bounds[:,1]):
             raise ValueError("State out of bounds.")
-        res = np.empty(self.n_states, dtype=int)
-        res = tuple(np.rint((state - self.bounds[:,0]) / self.deltas, out=res, casting='unsafe')) # Round to closest cell
+        res = np.empty(state.shape, dtype=int)
+        np.rint((state - self.bounds[:,0]) / self.deltas, casting='unsafe', out=res) # Round to closest cell
+        res = res.T # Transpose to have the n_states x n_samples shape
+        res = np.squeeze(res) # Remove the extra dimension if the input was a single state
+        res = tuple(res) # Convert to tuple
         return res
     
     def toState(self, index: tuple):
