@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 import cvxpy as cp
 import numpy as np
 
-from ServiceSet import ServiceSet
-from StatePF import StatePF
-from StateSpace import StateSpace
+from .ServiceSet import ServiceSet
+from .StatePF import StatePF
+from .StateSpace import StateSpace
 
 class CrowdsourcingBase(ABC):
     def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
@@ -42,13 +42,15 @@ class CrowdsourcingBase(ABC):
         if not self.initialized:
             raise ValueError("Crowdsourcing must be initialized first.")
         for k in range(self.N-1, 0-1, -1): # From N-1 to 0
-            def eval_r_overline(x):
-                x_index_flat = np.ravel_multi_index(x, self.ss.dims)
-                return - np.dot(self._a[k+1, :, x_index_flat], self._alpha[k+1, :]) - self.cost(x,k)
+            def eval_r_overline(states):
+                x_indexes = self.ss.toIndex(states) # Tuple of ndarrays (n_states, n_samples)
+                x_indexes_flat = np.ravel_multi_index(x_indexes, self.ss.dims) # array of indices (n_samples,)
+                return - np.dot(self._a[k+1, :, x_indexes_flat], self._alpha[k+1, :]) - self.cost(states,k)
             
             # When we are at the end of the recursion, we don't need to evaluate the optimal policy from any state but the initial state
             if k == 0:
                 x, x_index = self._initial_state, self.ss.toIndex(self._initial_state)
+                x_index_flat = np.ravel_multi_index(x_index, self.ss.dims)
                 behaviors = self._behaviors.getAtTime(k)
                 for s in range(self.S):
                     pi_cond = behaviors[s]

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from StatePF import StateCondPF
-from StateSpace import StateSpace
+from .StatePF import StateCondPF
+from .StateSpace import StateSpace
 
 
 class Behavior(ABC): #{pi(x_k|x_k-1)}_0:N

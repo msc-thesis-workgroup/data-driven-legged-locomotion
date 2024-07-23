@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from StateSpace import StateSpace
+from .StateSpace import StateSpace
 
 class StatePF(ABC): #pi(x_k)
     """A StatePF is a probability distribution over the state space."""
@@ -106,7 +106,6 @@ class NormalStatePF(StatePF):
         return np.exp(-0.5 * (state - self.mean).T @ self.inv_cov @ (state - self.mean)) / np.sqrt((2 * np.pi)**self.ss.n_states * self.det_cov)
     
     def sample(self) -> np.array:
-        print(self.mean, self.cov)
         return np.random.multivariate_normal(self.mean, self.cov)
     
     def getMean(self) -> np.array:
