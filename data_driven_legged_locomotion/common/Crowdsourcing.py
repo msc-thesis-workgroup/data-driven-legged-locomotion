@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import cvxpy as cp
 import numpy as np
 
-from .ServiceSet import ServiceSet
+from .ServiceSet import ServiceSet, BehaviorSet, Behavior
 from .StatePF import StatePF
 from .StateSpace import StateSpace
 
@@ -22,7 +22,7 @@ class CrowdsourcingBase(ABC):
         self._a = np.zeros((self.N + 1, self.S, self.ss.total_combinations))
         self._alpha = np.zeros((self.N + 1, self.S))
         #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
-        self._behaviors = self.services.getBehaviors(initial_state, self.N)
+        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N)
         self._initial_state = initial_state
         self.initialized = True
     
@@ -38,7 +38,7 @@ class CrowdsourcingBase(ABC):
         problem.solve()
         return alpha.value
     
-    def run(self):
+    def run(self) -> Behavior:
         if not self.initialized:
             raise ValueError("Crowdsourcing must be initialized first.")
         for k in range(self.N-1, 0-1, -1): # From N-1 to 0
@@ -71,6 +71,8 @@ class CrowdsourcingBase(ABC):
                     exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
                     self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
                 self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
+        services_sequence = np.argmax(self._alpha[0:-1], axis=1)
+        return self._behaviors.extractBehavior(services_sequence)
                 
 class MaxEntropyCrowdsouring(CrowdsourcingBase):
     def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):

@@ -56,6 +56,15 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
     def getAtTime(self, k: int) -> list[StateCondPF]:
         """Returns the state conditional probability distributions at time k."""
         return [behavior.getAtTime(k) for behavior in self.behaviors]
+    
+    def extractBehavior(self, s_list: list[int]) -> Behavior:
+        """Extracts a behavior from a list of service indices."""
+        if len(s_list) != self.N:
+            raise ValueError("The list of indices must have the same length as the time window.")
+        behavior = Behavior(self.ss, self.N)
+        for k, s in enumerate(s_list):
+            behavior.time_window.append(self.behaviors[s].time_window[k])
+        return behavior
 
 class ServiceSet:
     """Abstract class for a set of services."""
