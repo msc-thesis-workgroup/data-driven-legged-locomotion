@@ -46,9 +46,9 @@ class StateSpace:
         if len(state.shape) == 1:
             state = np.expand_dims(state, axis=0)
         if state.shape[1] != self.n_states:
-            raise ValueError("Axis 1 has the wrong size.")
+            raise ValueError(f"Axis 1 has size {state.shape[1]} but {self.n_states} is expected.")
         if np.any(state < self.bounds[:,0]) or np.any(state > self.bounds[:,1]):
-            raise ValueError("State out of bounds.")
+            raise ValueError(f"State {state} out of bounds.")
         res = np.empty(state.shape, dtype=int)
         np.rint((state - self.bounds[:,0]) / self.deltas, casting='unsafe', out=res) # Round to closest cell
         res = res.T # Transpose to have the n_states x n_samples shape
