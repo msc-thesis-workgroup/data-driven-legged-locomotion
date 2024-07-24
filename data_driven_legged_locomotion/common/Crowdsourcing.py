@@ -38,7 +38,7 @@ class CrowdsourcingBase(ABC):
         problem.solve()
         return alpha.value
     
-    def run(self) -> Behavior:
+    def run(self) -> tuple[list[int], Behavior]:
         if not self.initialized:
             raise ValueError("Crowdsourcing must be initialized first.")
         for k in range(self.N-1, 0-1, -1): # From N-1 to 0
@@ -72,7 +72,7 @@ class CrowdsourcingBase(ABC):
                     self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
                 self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
         services_sequence = np.argmax(self._alpha[0:-1], axis=1)
-        return self._behaviors.extractBehavior(services_sequence)
+        return services_sequence, self._behaviors.extractBehavior(services_sequence)
                 
 class MaxEntropyCrowdsouring(CrowdsourcingBase):
     def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
