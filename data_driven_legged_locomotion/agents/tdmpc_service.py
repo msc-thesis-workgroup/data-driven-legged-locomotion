@@ -9,7 +9,8 @@ import hydra
 
 DEFAULT_CONFIG_PATH = "./config/config.yaml"
 
-class TDMPCService():
+class TDMPCService(MujocoService):
+    
 
     def __init__(self, ss: StateSpace, model, agent_path: str,variances: float = None, config_path: str = None):
         super().__init__(ss, model, variances)
