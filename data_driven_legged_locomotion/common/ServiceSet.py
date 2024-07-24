@@ -111,6 +111,7 @@ class MujocoService(Service):
         model_states = model.nq + model.nv
         if model_states != self.ss.n_states:
             raise ValueError(f"State space dimensions {self.ss.n_states} do not match the Mujoco model {model_states}.")
+        self.last_u = np.zeros(model.nu)
     
     def policy(self, x: np.array) -> np.array:
         """Returns the control action for the given state."""
@@ -129,6 +130,7 @@ class MujocoService(Service):
         self.data.qpos = x[0:self.model.nq]
         self.data.qvel = x[self.model.nq:]
         u = self._policy(x)
+        self.last_u = u
         self.data.ctrl = u
         mujoco.mj_step(self.model, self.data)
         x_next = np.concatenate([self.data.qpos, self.data.qvel])
