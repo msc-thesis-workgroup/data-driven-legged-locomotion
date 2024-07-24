@@ -105,12 +105,16 @@ class MujocoService(Service):
             variances = np.ones(ss.n_states) * 0.01
         self.variances = variances
         self.model = model
-        self.data = mujoco.data(model)
+        self.data = mujoco.MjData(model)
         if np.any(variances <= 0):
             raise ValueError("Variance must be positive.")
         model_states = model.nq + model.nv
         if model_states != self.ss.n_states:
             raise ValueError(f"State space dimensions {self.ss.n_states} do not match the Mujoco model {model_states}.")
+    
+    def policy(self, x: np.array) -> np.array:
+        """Returns the control action for the given state."""
+        return self._policy(x)
     
     @abstractmethod
     def _policy(self, x: np.array) -> np.array:
