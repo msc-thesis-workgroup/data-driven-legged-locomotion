@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+import mujoco
 import numpy as np
 
-from .StatePF import StateCondPF
+from .StatePF import StateCondPF, NormalStatePF, FakeStateCondPF
 from .StateSpace import StateSpace
 
 
@@ -95,3 +96,38 @@ class SingleBehavior(Behavior):
     def __init__(self, ss: StateSpace, behavior: StateCondPF):
         super().__init__(ss, 1)
         self.time_window.append(behavior)
+        
+class MujocoService(Service):
+    """A service that exploits a deterministic policy in a Mujoco environment to generate behaviors."""
+    def __init__(self, ss: StateSpace, model, variances: float = None):
+        super().__init__(ss)
+        if variances is None:
+            variances = np.ones(ss.n_states) * 0.01
+        self.variances = variances
+        self.model = model
+        self.data = mujoco.data(model)
+        if np.any(variances <= 0):
+            raise ValueError("Variance must be positive.")
+        model_states = model.nq + model.nv
+        if model_states != self.ss.n_states:
+            raise ValueError(f"State space dimensions {self.ss.n_states} do not match the Mujoco model {model_states}.")
+    
+    @abstractmethod
+    def _policy(self, x: np.array) -> np.array:
+        """Returns the control action for the given state."""
+        pass
+    
+    def _generateBehavior(self, initial_state_index: tuple, N: int) -> Behavior:
+        """Generates a behavior for the given state."""
+        if N > 1:
+            raise ValueError("MujocoService only supports N=1.")
+        x = self.ss.toState(initial_state_index)
+        self.data.qpos = x[0:self.model.nq]
+        self.data.qvel = x[self.model.nq:]
+        u = self._policy(x)
+        self.data.ctrl = u
+        mujoco.mj_step(self.model, self.data)
+        x_next = np.concatenate([self.data.qpos, self.data.qvel])
+        pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
+        cond_pf = FakeStateCondPF(self.ss, pf)
+        return SingleBehavior(self.ss, cond_pf)
