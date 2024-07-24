@@ -49,9 +49,10 @@ class StateCondPF(ABC): #pi(x_k|x_k-1)
         
     def getNextStatePF(self, state_index: np.array) -> StatePF:
         """Returns the next state probability distribution given the current state."""
-        if not state_index in self.PFs:
-            self.PFs[state_index] = self._getNextStatePF(state_index)
-        return self.PFs[state_index]
+        x_index_flat = np.ravel_multi_index(state_index, self.ss.dims) # array of indices (n_samples,)
+        if not x_index_flat in self.PFs:
+            self.PFs[x_index_flat] = self._getNextStatePF(state_index)
+        return self.PFs[x_index_flat]
 
 class HistogramStatePF(StatePF):
     """A StatePF that represents a probability distribution over the state space using a histogram."""
@@ -116,6 +117,13 @@ class NormalStatePF(StatePF):
     
     def getEntropy(self) -> float:
         return 0.5 * np.log((2 * np.pi * np.e)**self.ss.n_states * self.det_cov)
+    
+class FakeStateCondPF(StateCondPF):
+  def __init__(self, ss: StateSpace, pf: StatePF):
+    super().__init__(ss)
+    self.pf = pf
+  def _getNextStatePF(self, state_index: np.array) -> StatePF:
+    return self.pf
 
 if __name__ == "__main__":
     bounds = np.array([[-1.0,1.0],[0.0,1.0]])
