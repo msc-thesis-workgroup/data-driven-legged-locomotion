@@ -3,7 +3,7 @@ import cvxpy as cp
 import numpy as np
 
 from .ServiceSet import ServiceSet, BehaviorSet, Behavior
-from .StatePF import StatePF
+from .StatePF import StatePF, StateCondPF
 from .StateSpace import StateSpace
 
 class CrowdsourcingBase(ABC):
@@ -38,6 +38,17 @@ class CrowdsourcingBase(ABC):
         problem.solve()
         return alpha.value
     
+    def _state_iteration(self, x_index: tuple, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+        x_index_flat = np.ravel_multi_index(x_index, self.ss.dims)
+        #r_hat = - np.dot(self._a[k+1, :, x_index_flat], self._alpha[k+1, :])
+        #self._overline_r[k, x_index_flat] = r_hat - self.cost(x,k)
+        for s in range(self.S):
+            pi_cond = behaviors[s]
+            pi = pi_cond.getNextStatePF(x_index)
+            exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
+            self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
+        self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
+    
     def run(self) -> tuple[list[int], Behavior]:
         if not self.initialized:
             raise ValueError("Crowdsourcing must be initialized first.")
@@ -46,31 +57,14 @@ class CrowdsourcingBase(ABC):
                 x_indexes = self.ss.toIndex(states) # Tuple of ndarrays (n_states, n_samples)
                 x_indexes_flat = np.ravel_multi_index(x_indexes, self.ss.dims) # array of indices (n_samples,)
                 return - np.dot(self._a[k+1, :, x_indexes_flat], self._alpha[k+1, :]) - self.cost(states,k)
-            
+            behaviors = self._behaviors.getAtTime(k)
             # When we are at the end of the recursion, we don't need to evaluate the optimal policy from any state but the initial state
             if k == 0:
                 x, x_index = self._initial_state, self.ss.toIndex(self._initial_state)
-                x_index_flat = np.ravel_multi_index(x_index, self.ss.dims)
-                behaviors = self._behaviors.getAtTime(k)
-                for s in range(self.S):
-                    pi_cond = behaviors[s]
-                    pi = pi_cond.getNextStatePF(x_index)
-                    exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
-                    self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
-                self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
+                self._state_iteration(x_index, k, behaviors, eval_r_overline)
                 break
-            
             for x_index, x in self.ss:
-                x_index_flat = np.ravel_multi_index(x_index, self.ss.dims)
-                #r_hat = - np.dot(self._a[k+1, :, x_index_flat], self._alpha[k+1, :])
-                #self._overline_r[k, x_index_flat] = r_hat - self.cost(x,k)
-                behaviors = self._behaviors.getAtTime(k)
-                for s in range(self.S):
-                    pi_cond = behaviors[s]
-                    pi = pi_cond.getNextStatePF(x_index)
-                    exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
-                    self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
-                self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
+                self._state_iteration(x_index, k, behaviors, eval_r_overline)
         services_sequence = np.argmax(self._alpha[0:-1], axis=1)
         return services_sequence, self._behaviors.extractBehavior(services_sequence)
                 
