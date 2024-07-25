@@ -20,21 +20,9 @@ project(
   DESCRIPTION "Crowdsourcing algorithms for legged locomotion"
 )
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-message("Python3_FOUND:${Python3_FOUND}")
-message("Python3_VERSION:${Python3_VERSION}")
-message("Python3_Development_FOUND:${Python3_Development_FOUND}")
-message("Python3_EXECUTABLE:${Python3_EXECUTABLE}")
-#TODO CHANGE BUILD DIR FOR MUJOCO_MPC TO AVOID THE LAST ERROR
-# include(FetchContent)
-# FetchContent_Declare(
-#   mujoco_mpc
-#   GIT_REPOSITORY https://github.com/AntoSave/mujoco_mpc.git
-#   GIT_TAG main
-# )
-# FetchContent_GetProperties(mujoco_mpc)
-# message(STATUS "mujoco_mpc_SOURCE_DIR=${mujoco_mpc_SOURCE_DIR}")
-# message(STATUS "mujoco_mpc_BINARY_DIR=${mujoco_mpc_BINARY_DIR}")
-# FetchContent_MakeAvailable(mujoco_mpc)
+message("Using Python3 executable:${Python3_EXECUTABLE}")
+message("Python3 version:${Python3_VERSION}")
+
 include(ExternalProject)
 ExternalProject_Add(
   mujoco_mpc
@@ -42,11 +30,10 @@ ExternalProject_Add(
   GIT_TAG main
 )
 
-add_custom_command(TARGET mujoco_mpc POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                mujoco_mpc-prefix/src/mujoco_mpc-build
-                mujoco_mpc-prefix/src/mujoco_mpc/build)
+ExternalProject_Get_Property(mujoco_mpc BINARY_DIR SOURCE_DIR)
+message("Building protobuf files with: ${Python3_EXECUTABLE} setup.py install -B ${BINARY_DIR}")
+message("working directory: ${SOURCE_DIR}/python")
 execute_process(
-  COMMAND ${Python3_EXECUTABLE} setup.py install
-  WORKING_DIRECTORY ${mujoco_mpc_SOURCE_DIR}/python
+  COMMAND ${Python3_EXECUTABLE} setup.py install -B ${BINARY_DIR}
+  WORKING_DIRECTORY ${SOURCE_DIR}/python
 )
