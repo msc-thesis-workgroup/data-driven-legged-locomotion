@@ -6,7 +6,7 @@ class StateSpace:
     def __init__(self, n_states: int, bounds: np.ndarray, max_deltas = list[int]):
         """Initializes the state space with the given number of states and bounds.
         max_deltas is a list of the maximum cell size in each dimension."""
-        if(len(bounds) != n_states):
+        if(bounds.shape[0] != n_states):
             raise("Dimension vector must have the same size of the ranges vector")
         self.n_states = n_states
         self.bounds = bounds
@@ -30,6 +30,7 @@ class StateSpace:
     
     @property
     def total_combinations(self):
+        #print(self.dims)
         return np.prod(self.dims)
 
     def _buildStateSpace(self, max_deltas):
@@ -47,8 +48,14 @@ class StateSpace:
             state = np.expand_dims(state, axis=0)
         if state.shape[1] != self.n_states:
             raise ValueError(f"Axis 1 has size {state.shape[1]} but {self.n_states} is expected.")
-        if np.any(state < self.bounds[:,0]) or np.any(state > self.bounds[:,1]):
-            raise ValueError(f"State {state} out of bounds.")
+        if np.any(state < self.bounds[:,0]):
+            i = state < self.bounds[:,0]
+            print(i.shape)
+            raise ValueError(f"State {state} is lower than the lower bounds {self.bounds[:,0]}.")
+        if np.any(state > self.bounds[:,1]):
+            i = state > self.bounds[:,1]
+            print(i.shape)
+            raise ValueError(f"State {state} is higher than the upper bounds {self.bounds[:,1]}.")
         res = np.empty(state.shape, dtype=int)
         np.rint((state - self.bounds[:,0]) / self.deltas, casting='unsafe', out=res) # Round to closest cell
         res = res.T # Transpose to have the n_states x n_samples shape
