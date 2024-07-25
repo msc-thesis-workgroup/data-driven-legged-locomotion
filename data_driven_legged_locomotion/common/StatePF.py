@@ -49,10 +49,11 @@ class StateCondPF(ABC): #pi(x_k|x_k-1)
         
     def getNextStatePF(self, state_index: np.ndarray) -> StatePF:
         """Returns the next state probability distribution given the current state."""
-        x_index_flat = np.ravel_multi_index(state_index, self.ss.dims) # array of indices (n_samples,)
-        if not x_index_flat in self.PFs:
-            self.PFs[x_index_flat] = self._getNextStatePF(state_index)
-        return self.PFs[x_index_flat]
+        # print("state_index: ", state_index)
+        # print("self.ss.dims: ", self.ss.dims)
+        if not state_index in self.PFs:
+            self.PFs[state_index] = self._getNextStatePF(state_index)
+        return self.PFs[state_index]
 
 class HistogramStatePF(StatePF):
     """A StatePF that represents a probability distribution over the state space using a histogram."""
