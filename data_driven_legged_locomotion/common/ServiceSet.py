@@ -59,7 +59,7 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
         self.behaviors.append(behavior)
         
     def getAtTime(self, k: int) -> list[StateCondPF]:
-        """Returns the state conditional probability distributions at time k."""
+        """Returns the state conditional probability distributions at time k given by all behaviors."""
         return [behavior.getAtTime(k) for behavior in self.behaviors]
     
     def extractBehavior(self, s_list: list[int]) -> Behavior:
