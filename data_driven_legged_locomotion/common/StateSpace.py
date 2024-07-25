@@ -3,7 +3,7 @@ import numpy as np
 class StateSpace:
     """StateSpace provides a representation for the (discretized) state space over which PFs are defined"""
 
-    def __init__(self, n_states: int, bounds: np.array, max_deltas = list[int]):
+    def __init__(self, n_states: int, bounds: np.ndarray, max_deltas = list[int]):
         """Initializes the state space with the given number of states and bounds.
         max_deltas is a list of the maximum cell size in each dimension."""
         if(len(bounds) != n_states):
@@ -41,7 +41,7 @@ class StateSpace:
         #     linspaces.append(np.linspace(self.bounds[i,0],self.bounds[i,1],num=self.dims[i], endpoint=True))
         # self.X = np.stack(np.meshgrid(*linspaces,indexing='xy'))
 
-    def toIndex(self, state: np.array) -> tuple:
+    def toIndex(self, state: np.ndarray) -> tuple:
         """Converts a state to an index in the state space."""
         if len(state.shape) == 1:
             state = np.expand_dims(state, axis=0)

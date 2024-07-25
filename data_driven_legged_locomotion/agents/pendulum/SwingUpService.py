@@ -11,7 +11,7 @@ class SwingUpService(MujocoService):
         self.b = 3.5
         self.k = 10
     
-    def _policy(self, x: np.array) -> np.array:
+    def _policy(self, x: np.ndarray) -> np.ndarray:
         (q, dot_q) = x
         E_actual = 0.5 * self.m * self.l**2 * dot_q**2 - self.m * self.g * self.l * np.cos(q)
         E_desired = self.m * self.g * self.l

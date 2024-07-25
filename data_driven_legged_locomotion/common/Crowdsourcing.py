@@ -18,7 +18,7 @@ class CrowdsourcingBase(ABC):
     def S(self):
         return len(self.services)
         
-    def initialize(self, initial_state: np.array):
+    def initialize(self, initial_state: np.ndarray):
         self._a = np.zeros((self.N + 1, self.S, self.ss.total_combinations))
         self._alpha = np.zeros((self.N + 1, self.S))
         #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
@@ -30,7 +30,7 @@ class CrowdsourcingBase(ABC):
     def _get_DKL(self, pi: StatePF) -> float:
         pass
     
-    def _solveOptimization(self, a: np.array):
+    def _solveOptimization(self, a: np.ndarray):
         alpha = cp.Variable(self.S)
         constraints = [alpha >= 0, cp.sum(alpha) == 1]
         objective = cp.Maximize(cp.sum(cp.multiply(a, alpha)))
