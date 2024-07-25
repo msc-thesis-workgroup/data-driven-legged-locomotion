@@ -1,1 +1,1 @@
-from .pendulum import PendulumEnvironment
+from .pendulum import PendulumEnvironment, energy_based_cost
