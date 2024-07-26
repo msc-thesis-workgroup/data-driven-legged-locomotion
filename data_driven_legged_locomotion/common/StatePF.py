@@ -13,7 +13,7 @@ class StatePF(ABC): #pi(x_k)
         pass
     
     @abstractmethod
-    def sample(self) -> np.ndarray:
+    def sample(self, num_samples: int = 1) -> np.ndarray:
         pass
     
     @abstractmethod
@@ -30,7 +30,8 @@ class StatePF(ABC): #pi(x_k)
     
     def monteCarloExpectation(self, func: callable, num_samples: int = 50) -> float:
         """Computes the expectation of a function using Monte Carlo sampling."""
-        samples = np.array([self.sample() for _ in range(num_samples)])
+        #samples = np.array([self.sample() for _ in range(num_samples)])
+        samples = self.sample(num_samples=num_samples)
         return np.mean(func(samples))
     
     def getProbState(self, state: np.ndarray) -> float:
@@ -68,7 +69,9 @@ class HistogramStatePF(StatePF):
     def getProb(self, state_index: tuple) -> float:
         return self.histogram[state_index]
     
-    def sample(self) -> np.ndarray:
+    def sample(self, num_samples: int = 1) -> np.ndarray:
+        if num_samples != 1:
+            raise ValueError("HistogramStatePF only supports sampling one state at a time.")
         index_flat = np.random.choice(np.prod(self.ss.dims), p=self.histogram.flatten())
         index = np.unravel_index(index_flat, self.ss.dims)
         index = np.array(index)
@@ -107,8 +110,8 @@ class NormalStatePF(StatePF):
         state = self.ss.toState(state_index)
         return np.exp(-0.5 * (state - self.mean).T @ self.inv_cov @ (state - self.mean)) / np.sqrt((2 * np.pi)**self.ss.n_states * self.det_cov)
     
-    def sample(self) -> np.ndarray:
-        return np.random.multivariate_normal(self.mean, self.cov)
+    def sample(self, num_samples: int = 1) -> np.ndarray:
+        return np.random.multivariate_normal(self.mean, self.cov, size=num_samples)
     
     def getMean(self) -> np.ndarray:
         return self.mean
