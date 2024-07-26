@@ -23,7 +23,7 @@ class H1WalkEnvironment(MujocoEnvironment):
         #                            ])
         upper_q_bounds = np.ones(26)*10
         lower_q_bounds = -upper_q_bounds
-        upper_dq_bounds = np.ones(6+19)*10
+        upper_dq_bounds = np.ones(6+19)*35
         lower_dq_bounds = -upper_dq_bounds
         upper_bounds = np.concatenate([upper_q_bounds, upper_dq_bounds])
         lower_bounds = np.concatenate([lower_q_bounds, lower_dq_bounds])
