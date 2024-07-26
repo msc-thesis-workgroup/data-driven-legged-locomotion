@@ -36,7 +36,33 @@ class TDMPCService(MujocoService):
 
         self.set_policy_reference(DEFAULT_REFERENCE_DIRECTION)
         self._setup_agent(config_path, agent_path)
+
+
+    def get_joint_torques(self,action):
         
+        kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
+        kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])
+        action_high = np.array([0.43, 0.43, 2.53, 2.05, 0.52, 0.43, 0.43, 2.53, 2.05, 0.52, 2.35, 2.87, 3.11, 4.45, 2.61, 2.87, 0.34, 1.3, 2.61])
+        action_low = np.array([-0.43, -0.43, -3.14, -0.26, -0.87, -0.43, -0.43, -3.14, -0.26, -0.87, -2.35, -2.87, -0.34, -1.3,  -1.25, -2.87, -3.11, -4.45, -1.25])
+
+        ctrl = (action + 1) / 2 * (action_high - action_low) + action_low
+         
+
+        m = self.model
+        d = self.data
+
+        actuator_length = d.actuator_length
+        error = ctrl - actuator_length
+        
+        empty_array = np.zeros(m.actuator_dyntype.shape)
+        
+        ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
+        
+        error_dot = ctrl_dot - d.actuator_velocity
+        
+        joint_torques = kp*error + kd*error_dot
+
+        return joint_torques
 
     def set_policy_reference(self, policy_reference: np.array):
         """Sets the policy reference. The policy reference is the desired direction of the movement for the agent."""
@@ -61,10 +87,13 @@ class TDMPCService(MujocoService):
 
     def _policy(self, x: np.array) -> np.array:
         """Returns the action given the state."""
-        
         x = self._generalize_walk_direction(x)
         action = self.agent.act(x, t0=self.t == 0, task=None)
         self.t += 1
+        action = action.detach().numpy()
+        #print("Action pre: ", action)
+        action = self.get_joint_torques(action)
+        #print("Action after: ", action)
         return action
         
     def _setup_agent(self,config_path: str, agent_path: str):
@@ -93,12 +122,16 @@ class TDMPCService(MujocoService):
         current_quat = Quaternion(obs[3:7])  # Convert tensor slice to numpy array for Quaternion
         current_position = obs[0:3] # Convert tensor slice to numpy array for Quaternion
 
-        new_quat = transformation_quat * current_quat
-        new_pos = transformation_quat.rotate(current_position)
-        new_vel = transformation_quat.rotate(obs[26:29])
+        new_quat = (transformation_quat * current_quat).elements.astype(float)
+        new_pos = transformation_quat.rotate(current_position).astype(float)
+        new_vel = transformation_quat.rotate(obs[26:29]).astype(float)
+        
+        # convert obs to tensor
+        #obs = torch.from_numpy(obs).type(torch.FloatTensor)
+        obs = torch.tensor(obs, dtype=torch.float32)
 
-        obs[0:3] = torch.from_numpy(new_pos).type_as(torch.FloatTensor)
-        obs[3:7] = torch.from_numpy(new_quat.q).type_as(torch.FloatTensor)
-        obs[26:29] = torch.from_numpy(new_vel).type_as(torch.FloatTensor)
+        obs[0:3] = torch.from_numpy(new_pos).type(torch.FloatTensor)
+        obs[3:7] = torch.from_numpy(new_quat).type(torch.FloatTensor)
+        obs[26:29] = torch.from_numpy(new_vel).type(torch.FloatTensor)
 
         return obs
