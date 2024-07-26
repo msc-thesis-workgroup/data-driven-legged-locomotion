@@ -7,7 +7,8 @@ class H1WalkEnvironment(MujocoEnvironment):
     def __init__(self, n_samples = 1000):
         base_path = pathlib.Path(__file__).parent.parent.parent.parent
         print("[DEBUG] base_path: ", base_path)
-        task_candidates = [path for path in pathlib.Path(base_path).rglob("mujoco_mpc-build/mjpc/tasks/h1/walk/task.xml")]
+        #task_candidates = [path for path in pathlib.Path(base_path).rglob("mujoco_mpc-build/mjpc/tasks/h1/walk/task.xml")]
+        task_candidates = [path for path in pathlib.Path("/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/mjpc/tasks/h1/walk").rglob("task.xml")]
         print("[DEBUG] task candidates: ", task_candidates)
         if len(task_candidates) == 0:
             raise ValueError(f"Could not find h1_walk task in folder {base_path}, make sure to build mujoco_mpc")
