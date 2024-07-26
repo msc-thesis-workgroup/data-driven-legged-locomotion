@@ -18,11 +18,11 @@ class CrowdsourcingBase(ABC):
     def S(self):
         return len(self.services)
         
-    def initialize(self, initial_state: np.ndarray):
+    def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S, self.ss.total_combinations))
         self._alpha = np.zeros((self.N + 1, self.S))
         #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
-        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N)
+        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N, time)
         self._initial_state = initial_state
         self.initialized = True
     
@@ -84,11 +84,11 @@ class MaxEntropyCrowdsouring(CrowdsourcingBase):
         return -pi.getEntropy()
     
 class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
-    def initialize(self, initial_state: np.ndarray):
+    def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S))
         self._alpha = np.zeros((self.N + 1, self.S))
         #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
-        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N)
+        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N, time)
         self._initial_state = initial_state
         self.initialized = True
         
