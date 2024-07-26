@@ -71,7 +71,7 @@ enc_dim: 256
 num_channels: 32
 mlp_dim: 512
 latent_dim: 512
-task_dim: 96
+task_dim: 0 #96 # 0
 num_q: 5
 dropout: 0.01
 simnorm_dim: 8
@@ -90,17 +90,17 @@ seed: 1
 
 # convenience
 work_dir: ???
-task_title: ???
-multitask: ???
-tasks: ???
-obs_shape: ???
-action_dim: ???
-episode_length: ???
+task_title: Humanoid_H1 Walk V0
+multitask: false
+tasks: ['humanoid_h1-walk-v0']
+obs_shape: {'state': [51]}
+action_dim: 19
+episode_length: 5000
 obs_shapes: ???
 action_dims: ???
 episode_lengths: ???
-seed_steps: ???
-bin_size: ???
+seed_steps: 25000 # 5*5000
+bin_size: 0.2
 
 # humanoid envs
 policy_path: ???

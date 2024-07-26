@@ -7,6 +7,7 @@ from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCService
 from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 
+from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
 #env = PendulumEnvironment()
 env = H1WalkEnvironment()
 ss = env.ss
@@ -18,8 +19,14 @@ services = ServiceSet(ss)
 # lqrService = LQRService(ss, model)
 # services.addService(swingUpService)
 # services.addService(lqrService)
-mujoco_mpc_service = MujocoMPCService(ss, model)
-services.addService(mujoco_mpc_service)
+
+
+#mujoco_mpc_service = MujocoMPCService(ss, model)
+#services.addService(mujoco_mpc_service)
+
+mujoco_tdmpc_service = TDMPCService(ss, model, agent_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/step-660791.pt", config_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/config.yaml")
+services.addService(mujoco_tdmpc_service)
+
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
 
 def get_control(env):

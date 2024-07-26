@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from common import math
-from common.scale import RunningScale
-from common.world_model import WorldModel
+from data_driven_legged_locomotion.agents.tdmpc.common import math
+from data_driven_legged_locomotion.agents.tdmpc.common.scale import RunningScale
+from data_driven_legged_locomotion.agents.tdmpc.common.world_model import WorldModel
 
 
 class TDMPC2:

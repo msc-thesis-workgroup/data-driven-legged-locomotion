@@ -1,18 +1,18 @@
 
-from ..common.StateSpace import StateSpace
-from ..common.ServiceSet import MujocoService
+from omegaconf import OmegaConf
+from data_driven_legged_locomotion.common.StateSpace import StateSpace
+from data_driven_legged_locomotion.common.ServiceSet import MujocoService
 import numpy as np
 import os
 
-from tdmpc.tdmpc2 import TDMPC2
-import hydra
+from data_driven_legged_locomotion.agents.tdmpc.tdmpc2 import TDMPC2
 
 import torch
 from pyquaternion import Quaternion
 
 DEFAULT_CONFIG_PATH = "./config/config.yaml"
  
-DEFAULT_TARGET_DIRECTION = np.array([0.0, 0.0, 0.98, 0.0, 0.0, 0.0, 0.0]) # The neural network is trained with this reference to understand the direction of the movement.
+DEFAULT_TARGET_DIRECTION = np.array([0.0, 0.0, 0.98, 1.0, 0.0, 0.0, 0.0]) # The neural network is trained with this reference to understand the direction of the movement.
 DEFAULT_REFERENCE_DIRECTION = DEFAULT_TARGET_DIRECTION # The target direction of the movement.
 
 class TDMPCService(MujocoService):
@@ -67,20 +67,22 @@ class TDMPCService(MujocoService):
         self.t += 1
         return action
         
-    def _setup_agent(self, x,config_path: str, agent_path: str):
+    def _setup_agent(self,config_path: str, agent_path: str):
         
+        # check if config path exists
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Config path {config_path} does not exist.")
 
-        # import cfg from config_path
-        cfg = hydra.utils.instantiate(config_path) # cfg contains the configuration for the agent (the neural network parameters and so on)
-        print("[DEBUG TDMPCService] cfg: ", cfg)
-
-        # Create the TD-MPC agent
-        self.agent = TDMPC2(cfg)
-        
         # check if agent path exists
         if not os.path.exists(agent_path):
             raise FileNotFoundError(f"Agent path {agent_path} does not exist.")
 
+        # Load the configuration file
+        cfg = OmegaConf.load(config_path)
+
+        # Create the TD-MPC agent
+        self.agent = TDMPC2(cfg)        
+        
         # Load agent
         self.agent.load(agent_path)
 
@@ -88,21 +90,15 @@ class TDMPCService(MujocoService):
         
         transformation_quat = self.transformation_quat
 
-        # Adapt to the new observation format
         current_quat = Quaternion(obs[3:7])  # Convert tensor slice to numpy array for Quaternion
         current_position = obs[0:3] # Convert tensor slice to numpy array for Quaternion
 
-
         new_quat = transformation_quat * current_quat
         new_pos = transformation_quat.rotate(current_position)
-
         new_vel = transformation_quat.rotate(obs[26:29])
-        #new_ang_vel = transformation_quat.rotate(obs[29:32])
-
 
         obs[0:3] = torch.from_numpy(new_pos).type_as(torch.FloatTensor)
         obs[3:7] = torch.from_numpy(new_quat.q).type_as(torch.FloatTensor)
         obs[26:29] = torch.from_numpy(new_vel).type_as(torch.FloatTensor)
-        #obs[29:32] = torch.from_numpy(new_ang_vel).type_as(obs)
 
         return obs
