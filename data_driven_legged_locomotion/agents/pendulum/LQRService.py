@@ -19,7 +19,7 @@ class LQRService(MujocoService):
     R = [0.1]
     self.K, S, E = control.dlqr(sys, Q, R)
   
-  def _policy(self, x: np.array) -> np.array:
+  def _policy(self, x: np.ndarray) -> np.ndarray:
     (q, dot_q) = x
     delta_q = q - np.pi
     delta_dot_q = dot_q

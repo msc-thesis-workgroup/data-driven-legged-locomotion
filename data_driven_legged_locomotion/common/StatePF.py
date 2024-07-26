@@ -13,15 +13,15 @@ class StatePF(ABC): #pi(x_k)
         pass
     
     @abstractmethod
-    def sample(self) -> np.array:
+    def sample(self) -> np.ndarray:
         pass
     
     @abstractmethod
-    def getMean(self) -> np.array:
+    def getMean(self) -> np.ndarray:
         pass
     
     @abstractmethod
-    def getVariance(self) -> np.array:
+    def getVariance(self) -> np.ndarray:
         pass
     
     @abstractmethod
@@ -33,7 +33,7 @@ class StatePF(ABC): #pi(x_k)
         samples = np.array([self.sample() for _ in range(num_samples)])
         return np.mean(func(samples))
     
-    def getProbState(self, state: np.array) -> float:
+    def getProbState(self, state: np.ndarray) -> float:
         """Returns the probability of a state."""
         return self.getProb(self.ss.toIndex(state))
         
@@ -44,19 +44,20 @@ class StateCondPF(ABC): #pi(x_k|x_k-1)
         self.PFs = {}
     
     @abstractmethod
-    def _getNextStatePF(self, state_index: np.array) -> StatePF:
+    def _getNextStatePF(self, state_index: np.ndarray) -> StatePF:
         pass
         
-    def getNextStatePF(self, state_index: np.array) -> StatePF:
+    def getNextStatePF(self, state_index: np.ndarray) -> StatePF:
         """Returns the next state probability distribution given the current state."""
-        x_index_flat = np.ravel_multi_index(state_index, self.ss.dims) # array of indices (n_samples,)
-        if not x_index_flat in self.PFs:
-            self.PFs[x_index_flat] = self._getNextStatePF(state_index)
-        return self.PFs[x_index_flat]
+        # print("state_index: ", state_index)
+        # print("self.ss.dims: ", self.ss.dims)
+        if not state_index in self.PFs:
+            self.PFs[state_index] = self._getNextStatePF(state_index)
+        return self.PFs[state_index]
 
 class HistogramStatePF(StatePF):
     """A StatePF that represents a probability distribution over the state space using a histogram."""
-    def __init__(self, ss: StateSpace, data: np.array):
+    def __init__(self, ss: StateSpace, data: np.ndarray):
         super().__init__(ss)
         if np.any(data.shape != ss.dims):
             raise ValueError("Histogram must have the same shape as the state space.")
@@ -67,19 +68,19 @@ class HistogramStatePF(StatePF):
     def getProb(self, state_index: tuple) -> float:
         return self.histogram[state_index]
     
-    def sample(self) -> np.array:
+    def sample(self) -> np.ndarray:
         index_flat = np.random.choice(np.prod(self.ss.dims), p=self.histogram.flatten())
         index = np.unravel_index(index_flat, self.ss.dims)
         index = np.array(index)
         return self.ss.toState(index)
     
-    def getMean(self) -> np.array:
+    def getMean(self) -> np.ndarray:
         mean = 0
         for index, state in self.ss:
             mean = mean + state * self.getProb(index)
         return mean
     
-    def getVariance(self) -> np.array:
+    def getVariance(self) -> np.ndarray:
         variance = 0
         for index, state in self.ss:
             variance = variance + (state - self.getMean())**2 * self.getProb(index)
@@ -95,7 +96,7 @@ class HistogramStatePF(StatePF):
     
 class NormalStatePF(StatePF):
     """A StatePF that represents a probability distribution over the state space using a normal distribution."""
-    def __init__(self, ss: StateSpace, mean: np.array, cov: np.array):
+    def __init__(self, ss: StateSpace, mean: np.ndarray, cov: np.ndarray):
         super().__init__(ss)
         self.mean = mean
         self.cov = cov
@@ -106,13 +107,13 @@ class NormalStatePF(StatePF):
         state = self.ss.toState(state_index)
         return np.exp(-0.5 * (state - self.mean).T @ self.inv_cov @ (state - self.mean)) / np.sqrt((2 * np.pi)**self.ss.n_states * self.det_cov)
     
-    def sample(self) -> np.array:
+    def sample(self) -> np.ndarray:
         return np.random.multivariate_normal(self.mean, self.cov)
     
-    def getMean(self) -> np.array:
+    def getMean(self) -> np.ndarray:
         return self.mean
     
-    def getVariance(self) -> np.array:
+    def getVariance(self) -> np.ndarray:
         return self.cov
     
     def getEntropy(self) -> float:
@@ -122,7 +123,7 @@ class FakeStateCondPF(StateCondPF):
   def __init__(self, ss: StateSpace, pf: StatePF):
     super().__init__(ss)
     self.pf = pf
-  def _getNextStatePF(self, state_index: np.array) -> StatePF:
+  def _getNextStatePF(self, state_index: np.ndarray) -> StatePF:
     return self.pf
 
 if __name__ == "__main__":

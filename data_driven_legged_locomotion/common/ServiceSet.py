@@ -24,12 +24,16 @@ class Service(ABC):
     def __init__(self, ss: StateSpace):
         self.ss = ss
     
+    @property
+    def last_u(self) -> np.ndarray:
+        raise ValueError("The service does not have a control action.")
+    
     @abstractmethod
     def _generateBehavior(self, initial_state_index: tuple, N: int) -> Behavior:
         """Generates a behavior for the given state."""
         pass
     
-    def generateBehavior(self, state: np.array, N: int) -> Behavior:
+    def generateBehavior(self, state: np.ndarray, N: int) -> Behavior:
         """Generates a behavior for the given state."""
         return self._generateBehavior(self.ss.toIndex(state), N)
 
@@ -55,7 +59,7 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
         self.behaviors.append(behavior)
         
     def getAtTime(self, k: int) -> list[StateCondPF]:
-        """Returns the state conditional probability distributions at time k."""
+        """Returns the state conditional probability distributions at time k given by all behaviors."""
         return [behavior.getAtTime(k) for behavior in self.behaviors]
     
     def extractBehavior(self, s_list: list[int]) -> Behavior:
@@ -72,7 +76,7 @@ class ServiceSet:
     def __init__(self, ss: StateSpace):
         self.ss = ss
         self.services: list[Service] = []
-        
+    
     def __len__(self):
         return len(self.services)
     
@@ -86,7 +90,7 @@ class ServiceSet:
         """Returns the number of services."""
         return len(self.services)
     
-    def getBehaviors(self, x_0: np.array, N: int) -> BehaviorSet:
+    def getBehaviors(self, x_0: np.ndarray, N: int) -> BehaviorSet:
         behavior_set = BehaviorSet(self.ss, N)
         for service in self.services:
             behavior_set.add(service.generateBehavior(x_0, N))
@@ -111,14 +115,18 @@ class MujocoService(Service):
         model_states = model.nq + model.nv
         if model_states != self.ss.n_states:
             raise ValueError(f"State space dimensions {self.ss.n_states} do not match the Mujoco model {model_states}.")
-        self.last_u = np.zeros(model.nu)
+        self._last_u = np.zeros(model.nu)
     
-    def policy(self, x: np.array) -> np.array:
+    @property
+    def last_u(self):
+        return self._last_u
+    
+    def policy(self, x: np.ndarray) -> np.ndarray:
         """Returns the control action for the given state."""
         return self._policy(x)
     
     @abstractmethod
-    def _policy(self, x: np.array) -> np.array:
+    def _policy(self, x: np.ndarray) -> np.ndarray:
         """Returns the control action for the given state."""
         pass
     
@@ -130,7 +138,7 @@ class MujocoService(Service):
         self.data.qpos = x[0:self.model.nq]
         self.data.qvel = x[self.model.nq:]
         u = self._policy(x)
-        self.last_u = u
+        self._last_u = u
         self.data.ctrl = u
         mujoco.mj_step(self.model, self.data)
         x_next = np.concatenate([self.data.qpos, self.data.qvel])

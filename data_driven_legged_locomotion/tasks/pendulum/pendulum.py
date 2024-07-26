@@ -9,6 +9,25 @@ class PendulumEnvironment(MujocoEnvironment):
         model_path = Path(__file__).parent / 'simple_pendulum.xml'
         ss = StateSpace(2, np.array([[-2*np.pi, 2*np.pi], [-10, 10]]), [np.pi/100, 20/2000])
         super().__init__(ss, model_path)
+        
+def energy_based_cost(states,k):
+  g = 9.81
+  m = 5.5
+  l = 0.5
+  if len(states.shape) == 1:
+    states = np.expand_dims(states, axis=0)
+  #states is now n_samples x n_states
+  #ref = np.array([np.pi, 0])
+  #cost = np.sum((states-ref)**2, axis=1)
+  E_actual = 0.5 * m * l**2 * states[:,1]**2 - m * g * l * np.cos(states[:,0])
+  E_desired = m * g * l
+  pos_actual = states[:,0]
+  pos_desired = np.pi
+  cost = (E_actual - E_desired)**2 + 100*(pos_actual - pos_desired)**2
+  # print(f"energy error: {np.mean((E_actual - E_desired)**2)}")
+  # print(f"position error: {np.mean(100*(pos_actual - pos_desired)**2)}")
+  cost = np.squeeze(cost)
+  return cost
 
 # A2 = [[0,1],[0,0]]
 # B2 = [[0],[1]]

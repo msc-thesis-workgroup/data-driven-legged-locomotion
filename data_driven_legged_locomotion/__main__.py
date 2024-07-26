@@ -3,39 +3,24 @@ from pathlib import Path
 import mujoco.viewer as viewer
 import time
 
-from data_driven_legged_locomotion.agents.pendulum import SwingUpService, LQRService
-from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, MaxEntropyCrowdsouring
-from data_driven_legged_locomotion.tasks.pendulum import PendulumEnvironment
+from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCService
+from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
+from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 
-env = PendulumEnvironment()
+#env = PendulumEnvironment()
+env = H1WalkEnvironment()
 ss = env.ss
 model = env.model
-
-def cost(states,k):
-  g = 9.81
-  m = 5.5
-  l = 0.5
-  if len(states.shape) == 1:
-    states = np.expand_dims(states, axis=0)
-  #states is now n_samples x n_states
-  #ref = np.array([np.pi, 0])
-  #cost = np.sum((states-ref)**2, axis=1)
-  E_actual = 0.5 * m * l**2 * states[:,1]**2 - m * g * l * np.cos(states[:,0])
-  E_desired = m * g * l
-  pos_actual = states[:,0]
-  pos_desired = np.pi
-  cost = (E_actual - E_desired)**2 + 100*(pos_actual - pos_desired)**2
-  print(f"energy error: {np.mean((E_actual - E_desired)**2)}")
-  print(f"position error: {np.mean(100*(pos_actual - pos_desired)**2)}")
-  cost = np.squeeze(cost)
-  return cost
+cost = h1_walk_cost
 
 services = ServiceSet(ss)
-SwingUpService = SwingUpService(ss, model)
-lqrService = LQRService(ss, model)
-services.addService(SwingUpService)
-services.addService(lqrService)
-crowdsourcing = MaxEntropyCrowdsouring(ss, services, cost)
+# swingUpService = SwingUpService(ss, model)
+# lqrService = LQRService(ss, model)
+# services.addService(swingUpService)
+# services.addService(lqrService)
+mujoco_mpc_service = MujocoMPCService(ss, model)
+services.addService(mujoco_mpc_service)
+crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
 
 def get_control(env):
   x = env.get_state()
@@ -44,10 +29,7 @@ def get_control(env):
   crowdsourcing.initialize(x)
   service_list, behavior = crowdsourcing.run()
   service_index = service_list[0]
-  if service_index == 0:
-    u = SwingUpService.policy(x)
-  elif service_index == 1:
-    u = lqrService.policy(x)
+  u = services.services[service_index].last_u
   return u
 
 with env.launch_passive_viewer() as viewer:
@@ -56,10 +38,7 @@ with env.launch_passive_viewer() as viewer:
   while viewer.is_running():
     step_start = time.time()
 
-    #control_callback(model,data)
     # Step the simulation forward.
-    #mujoco.mj_step(model, data)
-    
     u = get_control(env)
     env.step(u)
 
