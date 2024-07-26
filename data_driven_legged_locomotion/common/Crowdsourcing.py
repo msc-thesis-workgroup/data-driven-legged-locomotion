@@ -3,7 +3,7 @@ import cvxpy as cp
 import numpy as np
 
 from .ServiceSet import ServiceSet, BehaviorSet, Behavior
-from .StatePF import StatePF
+from .StatePF import StatePF, StateCondPF
 from .StateSpace import StateSpace
 
 class CrowdsourcingBase(ABC):
@@ -18,11 +18,11 @@ class CrowdsourcingBase(ABC):
     def S(self):
         return len(self.services)
         
-    def initialize(self, initial_state: np.array):
+    def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S, self.ss.total_combinations))
         self._alpha = np.zeros((self.N + 1, self.S))
         #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
-        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N)
+        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N, time)
         self._initial_state = initial_state
         self.initialized = True
     
@@ -80,3 +80,25 @@ class MaxEntropyCrowdsouring(CrowdsourcingBase):
     
     def _get_DKL(self, pi: StatePF) -> float:
         return -pi.getEntropy()
+    
+class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
+    def initialize(self, initial_state: np.ndarray, time: float = 0.0):
+        self._a = np.zeros((self.N + 1, self.S))
+        self._alpha = np.zeros((self.N + 1, self.S))
+        #self._overline_r = np.zeros((self.N, self.ss.total_combinations))
+        self._behaviors: BehaviorSet = self.services.getBehaviors(initial_state, self.N, time)
+        self._initial_state = initial_state
+        self.initialized = True
+        
+    def _state_iteration(self, x_index: tuple, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+        for s in range(self.S):
+            pi_cond = behaviors[s]
+            pi = pi_cond.getNextStatePF(x_index)
+            exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
+            self._a[k, s] = self._get_DKL(pi) + exp_r_overline
+        self._alpha[k,:] = self._solveOptimization(self._a[k, :])
+        
+    def _generate_eval_r_overline(self, k: int):
+        def eval_r_overline(states):
+            return - np.dot(self._a[k+1, :], self._alpha[k+1, :]) - self.cost(states,k)
+        return eval_r_overline
