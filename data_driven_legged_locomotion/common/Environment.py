@@ -18,6 +18,10 @@ class MujocoEnvironment:
     def timestep(self):
         return self.model.opt.timestep
     
+    @property
+    def time(self):
+        return self.data.time
+    
     def get_state(self, split=False) -> np.ndarray:
         qpos = self.data.qpos[:]
         qvel = self.data.qvel[:]
