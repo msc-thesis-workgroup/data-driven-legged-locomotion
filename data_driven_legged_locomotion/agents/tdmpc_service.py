@@ -38,9 +38,9 @@ class TDMPCService(MujocoService):
         self._setup_agent(config_path, agent_path)
 
 
-    def get_joint_torques(self, action: np.array) -> np.array:
-        data = self.data
-        model = self.model
+    def _get_joint_torques(self, action: np.array) -> np.array:
+        d = self.data
+        m = self.model
 
         kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
         kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])
@@ -49,16 +49,14 @@ class TDMPCService(MujocoService):
 
         ctrl = (action + 1) / 2 * (action_high - action_low) + action_low
                 
-        actuator_length = data.actuator_length
+        actuator_length = d.actuator_length
         error = ctrl - actuator_length
-        m = model
-        d = data
 
         empty_array = np.zeros(m.actuator_dyntype.shape)
         
         ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
         
-        error_dot = ctrl_dot - data.actuator_velocity
+        error_dot = ctrl_dot - d.actuator_velocity
         
         joint_torques = kp*error + kd*error_dot
 
@@ -70,9 +68,9 @@ class TDMPCService(MujocoService):
 
         # Calculate the transformation matrix from the home orientation to the target orientation
         if len(policy_reference) == 7:
-            target_quat = Quaternion(policy_reference[3:7])
+            policy_reference = Quaternion(policy_reference[3:7])
         elif len(policy_reference) == 4:
-            target_quat = Quaternion(policy_reference)
+            policy_reference = Quaternion(policy_reference)
         else:
             raise ValueError("The policy reference must be a quaternion.")
         
@@ -83,7 +81,7 @@ class TDMPCService(MujocoService):
         else:
             raise ValueError("The target reference must be a quaternion.")
 
-        self.transformation_quat = target_quat * target_quat.inverse
+        self.transformation_quat = target_quat * policy_reference.inverse
 
     def _policy(self, x: np.array) -> np.array:
         """Returns the action given the state."""
@@ -95,7 +93,7 @@ class TDMPCService(MujocoService):
         self.t += 1
         action = action.detach().numpy()
         #print("Action pre: ", action)
-        action = self.get_joint_torques(action)
+        action = self._get_joint_torques(action)
         #print("Action after: ", action)
         return action
     
