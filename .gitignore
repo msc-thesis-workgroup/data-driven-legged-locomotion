@@ -25,3 +25,8 @@ var/
 
 # Video files
 videos/
+# CACHE
+*/__pycache__/*
+*/*/__pycache__/*
+
+data_driven_legged_locomotion/mjpc/*
