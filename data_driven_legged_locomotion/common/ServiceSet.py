@@ -33,13 +33,13 @@ class Service(ABC):
         raise ValueError("The service does not have a control action.")
     
     @abstractmethod
-    def _generateBehavior(self, initial_state_index: tuple, N: int, t: float = 0.0) -> Behavior:
+    def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
         """Generates a behavior for the given state."""
         pass
     
     def generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
         """Generates a behavior for the given state."""
-        return self._generateBehavior(self.ss.toIndex(state), N, t)
+        return self._generateBehavior(state, N, t)
 
 class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
     def __init__(self, ss: StateSpace, N: int):
@@ -148,11 +148,11 @@ class MujocoService(Service):
         MujocoService class."""
         pass
     
-    def _generateBehavior(self, initial_state_index: tuple, N: int, t: float = 0.0) -> Behavior:
+    def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
         """Generates a behavior for the given state."""
         if N > 1:
             raise ValueError("MujocoService only supports N=1.")
-        x = self.ss.toState(initial_state_index)
+        x = state
         self.data.qpos = x[0:self.model.nq]
         self.data.qvel = x[self.model.nq:]
         u = self.policy(x,t)
