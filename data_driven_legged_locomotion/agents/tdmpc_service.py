@@ -4,7 +4,7 @@ from data_driven_legged_locomotion.common.StateSpace import StateSpace
 from data_driven_legged_locomotion.common.ServiceSet import MujocoService
 import numpy as np
 import os
-
+import pathlib
 from data_driven_legged_locomotion.agents.tdmpc.tdmpc2 import TDMPC2
 
 import torch
@@ -16,17 +16,40 @@ DEFAULT_TARGET_DIRECTION = np.array([0.0, 0.0, 0.98, 1.0, 0.0, 0.0, 0.0]) # The 
 DEFAULT_REFERENCE_DIRECTION = DEFAULT_TARGET_DIRECTION # The target direction of the movement.
 
 class TDMPCService(MujocoService):
-    
 
-    def __init__(self, ss: StateSpace, model, agent_path: str,variances: float = None, config_path: str = None):
+    def __init__(self, ss: StateSpace, model,variances: float = None):
         super().__init__(ss, model, variances)
-
-        if config_path == "" or config_path is None:
-            print("No config path provided. Using default config path.")
-            config_path = DEFAULT_CONFIG_PATH
         
-        if agent_path == "" or agent_path is None:
-            raise ValueError("No agent path provided.")
+        base_path = pathlib.Path(__file__).parent
+        print("[DEBUG] base_path: ", base_path)
+        config_path_candidates = [path for path in pathlib.Path(base_path).rglob("config.yaml")]
+        print("[DEBUG] server_binary_candidates: ", config_path_candidates)
+        
+        agent_path_candidates = [path for path in pathlib.Path(base_path).rglob("*.pt")]
+        print("[DEBUG] agent_path_candidates: ", agent_path_candidates)
+        
+
+        if len(config_path_candidates) == 0:
+            raise ValueError(f"Could not find agent_server binary in folder {base_path}, make sure to build the agent_server")
+        
+        if len (config_path_candidates) > 1:
+            raise ValueError(f"Multiple config files found in folder {base_path}.")
+
+        if len(agent_path_candidates) == 0:
+            raise ValueError(f"Could not find agent file in folder {base_path}, make sure to build the agent_server")
+        
+        if len (agent_path_candidates) > 1:
+            raise ValueError(f"Multiple agent files found in folder {base_path}.")
+
+        config_path = config_path_candidates[0]
+        agent_path = agent_path_candidates[0]
+
+        # if config_path == "" or config_path is None:
+        #     print("No config path provided. Using default config path.")
+        #     config_path = DEFAULT_CONFIG_PATH
+        
+        # if agent_path == "" or agent_path is None:
+        #     raise ValueError("No agent path provided.")
 
         self.t = 0
         self.agent = None
