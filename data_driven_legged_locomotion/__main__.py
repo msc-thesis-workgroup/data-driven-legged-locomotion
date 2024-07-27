@@ -33,16 +33,16 @@ def get_control(env):
   x = env.get_state()
   q, dot_q = env.get_state(split=True)
   x_index = ss.toIndex(x)
-  #init_time = time.time()
+  
+  mujoco_tdmpc_service.set_data(env.data)
+  mujoco_tdmpc_service.set_model(env.model)
+  #u = mujoco_tdmpc_service._policy(x)
+
   crowdsourcing.initialize(x)
-  #init_time = time.time() - init_time
-  #print(f"[DEBUG] Initialization time: {init_time}")
-  #crowdsourcing_time = time.time()
   service_list, behavior = crowdsourcing.run()
-  #crowdsourcing_time = time.time() - crowdsourcing_time
-  #print(f"[DEBUG] Total crowdsourcing time: {crowdsourcing_time}")
   service_index = service_list[0]
   u = services.services[service_index].last_u
+
   return u
 
 with env.launch_passive_viewer() as viewer:

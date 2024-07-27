@@ -37,28 +37,34 @@ class TDMPCService(MujocoService):
         self.set_policy_reference(DEFAULT_REFERENCE_DIRECTION)
         self._setup_agent(config_path, agent_path)
 
+    def set_model(self, model):
+        self.experiment_model = model
 
-    def get_joint_torques(self,action):
-        
+    def set_data(self, data):
+        self.experiment_data = data
+
+
+    def get_joint_torques(self, action: np.array) -> np.array:
+        data = self.experiment_data
+        model = self.experiment_model
+
         kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
         kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])
         action_high = np.array([0.43, 0.43, 2.53, 2.05, 0.52, 0.43, 0.43, 2.53, 2.05, 0.52, 2.35, 2.87, 3.11, 4.45, 2.61, 2.87, 0.34, 1.3, 2.61])
         action_low = np.array([-0.43, -0.43, -3.14, -0.26, -0.87, -0.43, -0.43, -3.14, -0.26, -0.87, -2.35, -2.87, -0.34, -1.3,  -1.25, -2.87, -3.11, -4.45, -1.25])
 
         ctrl = (action + 1) / 2 * (action_high - action_low) + action_low
-         
-
-        m = self.model
-        d = self.data
-
-        actuator_length = d.actuator_length
+                
+        actuator_length = data.actuator_length
         error = ctrl - actuator_length
-        
+        m = model
+        d = data
+
         empty_array = np.zeros(m.actuator_dyntype.shape)
         
         ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
         
-        error_dot = ctrl_dot - d.actuator_velocity
+        error_dot = ctrl_dot - data.actuator_velocity
         
         joint_torques = kp*error + kd*error_dot
 
@@ -87,7 +93,10 @@ class TDMPCService(MujocoService):
 
     def _policy(self, x: np.array) -> np.array:
         """Returns the action given the state."""
+        
         x = self._generalize_walk_direction(x)
+        x = torch.tensor(x, dtype=torch.float32)
+        #print("X: ", x)
         action = self.agent.act(x, t0=self.t == 0, task=None)
         self.t += 1
         action = action.detach().numpy()
@@ -95,7 +104,7 @@ class TDMPCService(MujocoService):
         action = self.get_joint_torques(action)
         #print("Action after: ", action)
         return action
-        
+    
     def _setup_agent(self,config_path: str, agent_path: str):
         
         # check if config path exists
@@ -114,7 +123,8 @@ class TDMPCService(MujocoService):
         
         # Load agent
         self.agent.load(agent_path)
-
+        print("[DEBUG] Agent loaded.")
+        
     def _generalize_walk_direction(self,obs: np.array):
         
         transformation_quat = self.transformation_quat
@@ -127,8 +137,8 @@ class TDMPCService(MujocoService):
         new_vel = transformation_quat.rotate(obs[26:29]).astype(float)
         
         # convert obs to tensor
-        #obs = torch.from_numpy(obs).type(torch.FloatTensor)
-        obs = torch.tensor(obs, dtype=torch.float32)
+        obs = torch.from_numpy(obs).type(torch.FloatTensor)
+        #obs = torch.tensor(obs, dtype=torch.float32)
 
         obs[0:3] = torch.from_numpy(new_pos).type(torch.FloatTensor)
         obs[3:7] = torch.from_numpy(new_quat).type(torch.FloatTensor)
