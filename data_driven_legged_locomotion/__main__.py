@@ -52,6 +52,7 @@ def get_control(env):
   crowdsourcing_time = time.time() - crowdsourcing_time
   print(f"[DEBUG] Total crowdsourcing time: {crowdsourcing_time}")
   service_index = service_list[0]
+  print(f"[DEBUG] Service index: {service_index}")
   u = services.services[service_index].last_u
   return u
 
