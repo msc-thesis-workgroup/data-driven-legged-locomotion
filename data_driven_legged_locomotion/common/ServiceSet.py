@@ -107,21 +107,26 @@ class SingleBehavior(Behavior):
         
 class MujocoService(Service):
     """A service that exploits a deterministic policy in a Mujoco environment to generate behaviors."""
-    def __init__(self, ss: StateSpace, model, variances: float = None, policy_sampling_time: float = 0.02):
+    def __init__(self, ss: StateSpace, model, variances: float = None, policy_sampling_time: float = 0.02, enable_zoh: bool = True):
         super().__init__(ss)
         if variances is None:
             variances = np.ones(ss.n_states) * 0.01
         self.variances = variances
         self.model = model
         self.data = mujoco.MjData(model)
+        
+        # Zero-order hold attributes
+        self._is_zoh_enabled = enable_zoh
+        self._policy_sampling_time = policy_sampling_time
+        self._last_u = np.zeros(model.nu) # Last control action
+        self._last_t = 0.0 # Last time the policy was evaluated
+        
+        # Check model consistency
         if np.any(variances <= 0):
             raise ValueError("Variance must be positive.")
         model_states = model.nq + model.nv
         if model_states != self.ss.n_states:
             raise ValueError(f"State space dimensions {self.ss.n_states} do not match the Mujoco model {model_states}.")
-        self.policy_sampling_time = policy_sampling_time
-        self._last_u = np.zeros(model.nu) # Last control action
-        self._last_t = 0.0 # Last time the policy was evaluated
     
     @property
     def last_u(self):
@@ -131,18 +136,24 @@ class MujocoService(Service):
     def last_t(self):
         return self._last_t
     
-    def policy(self, x: np.ndarray, t: float) -> np.ndarray:
-        """Returns the control action for the given state at the given time. This method takes
-        the policy sampling frequency into account by applying a zero-order hold to the policy."""
-        elapsed_time = t - self._last_t
-        if elapsed_time >= self.policy_sampling_time or t == 0.0: # We always evaluate the policy at t=0
+    def policy(self, x: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the control action for the given state at the given time. If enable_zoh is True,
+        this method takes the policy sampling frequency into account by applying a zero-order hold to the policy.
+        Otherwise, the policy is always evaluated."""
+        if not self._is_zoh_enabled:
+            self._last_u = self._policy(x,t)
             self._last_t = t
-            self._last_u = self._policy(x)
+            print(f"[DEBUG] MujocoService {id(self)} policy evaluated at time {t}.")
+            return self._last_u
+        elapsed_time = t - self._last_t
+        if elapsed_time >= self._policy_sampling_time or t == 0.0: # We always evaluate the policy at t=0
+            self._last_t = t
+            self._last_u = self._policy(x,t)
             print(f"[DEBUG] MujocoService {id(self)} policy evaluated at time {t}.")
         return self._last_u
     
     @abstractmethod
-    def _policy(self, x: np.ndarray) -> np.ndarray:
+    def _policy(self, x: np.ndarray, t: float = 0.0) -> np.ndarray:
         """Returns the control action for the given state. This method does not take
         the policy sampling frequency into account, thus it should be used only by the
         MujocoService class."""
@@ -155,6 +166,7 @@ class MujocoService(Service):
         x = state
         self.data.qpos = x[0:self.model.nq]
         self.data.qvel = x[self.model.nq:]
+        self.data.time = t
         u = self.policy(x,t)
         self._last_u = u
         self.data.ctrl = u
