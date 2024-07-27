@@ -37,16 +37,10 @@ class TDMPCService(MujocoService):
         self.set_policy_reference(DEFAULT_REFERENCE_DIRECTION)
         self._setup_agent(config_path, agent_path)
 
-    def set_model(self, model):
-        self.experiment_model = model
-
-    def set_data(self, data):
-        self.experiment_data = data
-
 
     def get_joint_torques(self, action: np.array) -> np.array:
-        data = self.experiment_data
-        model = self.experiment_model
+        data = self.data
+        model = self.model
 
         kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
         kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])

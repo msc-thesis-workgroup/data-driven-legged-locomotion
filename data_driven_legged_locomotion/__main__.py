@@ -8,6 +8,8 @@ from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, 
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 
 from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
+from copy import copy,deepcopy
+
 #env = PendulumEnvironment()
 env = H1WalkEnvironment()
 ss = env.ss
@@ -34,9 +36,7 @@ def get_control(env):
   q, dot_q = env.get_state(split=True)
   x_index = ss.toIndex(x)
   
-  mujoco_tdmpc_service.set_data(env.data)
-  mujoco_tdmpc_service.set_model(env.model)
-  #u = mujoco_tdmpc_service._policy(x)
+  mujoco_tdmpc_service.data = copy(env.data)
 
   crowdsourcing.initialize(x)
   service_list, behavior = crowdsourcing.run()
