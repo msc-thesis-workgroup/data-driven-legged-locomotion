@@ -7,7 +7,7 @@ from data_driven_legged_locomotion.common import MujocoService, StateSpace
 
 class MujocoMPCService(MujocoService):
     def __init__(self, ss: StateSpace, model, variances: float = None, direction: np.ndarray = np.array([1.0, 0.0])):
-        super().__init__(ss, model, variances)
+        super().__init__(ss, model, variances, policy_sampling_time=0.02)
         base_path = pathlib.Path(__file__).parent.parent.parent.parent.parent
         print("[DEBUG] base_path: ", base_path)
         server_binary_candidates = [path for path in pathlib.Path(base_path).rglob("agent_server")]
@@ -20,7 +20,7 @@ class MujocoMPCService(MujocoService):
                             model=model, 
                             server_binary_path=server_binary_path)
         agent.set_task_parameter("Torso", 1.3)
-        agent.set_task_parameter("Speed", 0.7)
+        agent.set_task_parameter("Speed", 0.6)
         self.agent = agent
         self.direction = direction
         self._update_mocap_pos()
