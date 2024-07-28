@@ -11,7 +11,7 @@ class MujocoEnvironment:
         self.n_states = self.model.nq + self.model.nv
         self.n_actions = self.model.nu
         if self.n_states != ss.n_states:
-            raise ValueError(f"State space dimension {ss.n_states} does not match model dimension {n_states}")
+            raise ValueError(f"State space dimension {ss.n_states} does not match model dimension {ss.n_states}")
         self.data = mujoco.MjData(self.model)
     
     @property

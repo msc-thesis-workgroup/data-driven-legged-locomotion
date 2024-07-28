@@ -1,14 +1,11 @@
 import numpy as np
-from pathlib import Path
 import mujoco.viewer as viewer
 import time
 
-from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCService
-from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
+from data_driven_legged_locomotion.common import ServiceSet, GreedyMaxEntropyCrowdsouring
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 
 from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
-from copy import copy,deepcopy
 
 #env = PendulumEnvironment()
 env = H1WalkEnvironment()
@@ -26,8 +23,10 @@ services = ServiceSet(ss)
 #mujoco_mpc_service = MujocoMPCService(ss, model)
 #services.addService(mujoco_mpc_service)
 
-mujoco_tdmpc_service = TDMPCService(ss, model)#, agent_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/step-660791.pt", config_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/config.yaml")
-mujoco_tdmpc_service_2 = TDMPCService(ss, model)#, agent_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/step-660791.pt", config_path="/home/davide/data-driven-legged-locomotion/data_driven_legged_locomotion/agents/tdmpc/config/config.yaml")
+variances = np.ones(51)*0.000001
+
+mujoco_tdmpc_service = TDMPCService(ss, model,variances)
+mujoco_tdmpc_service_2 = TDMPCService(ss, model,variances)
 mujoco_tdmpc_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
 services.addService(mujoco_tdmpc_service)
 services.addService(mujoco_tdmpc_service_2)
@@ -54,13 +53,8 @@ with env.launch_passive_viewer() as viewer:
     step_start = time.time()
 
     # Step the simulation forward.
-    #control_time = time.time()
     u = get_control(env)
-    #control_time = time.time() - control_time
-    #print(f"[DEBUG] Total control time: {control_time}")
-    #env_setp_time = time.time()
     env.step(u)
-    #env_setp_time = time.time() - env_setp_time
     #print(f"[DEBUG] Environment step time: {env_setp_time}")
 
     # Pick up changes to the physics state, apply perturbations, update options from GUI.

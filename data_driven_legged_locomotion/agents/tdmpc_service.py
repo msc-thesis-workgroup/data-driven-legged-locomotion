@@ -106,7 +106,7 @@ class TDMPCService(MujocoService):
 
         self.transformation_quat = target_quat * policy_reference.inverse
 
-    def _policy(self, x: np.array) -> np.array:
+    def _policy(self, x: np.array, t: float = 0.0) -> np.array:
         """Returns the action given the state."""
         
         x = self._generalize_walk_direction(x)
