@@ -159,19 +159,23 @@ class MujocoService(Service):
         MujocoService class."""
         pass
     
+    def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the next state given the current state and the current time. This method must set _last_u
+        as the control action used to reach the next state."""
+        u = self.policy(state,t)
+        self._last_u = u
+        self.data.qpos = state[0:self.model.nq]
+        self.data.qvel = state[self.model.nq:]
+        self.data.time = t
+        self.data.ctrl = u
+        mujoco.mj_step(self.model, self.data)
+        return np.concatenate([self.data.qpos, self.data.qvel])
+    
     def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
         """Generates a behavior for the given state."""
         if N > 1:
             raise ValueError("MujocoService only supports N=1.")
-        x = state
-        self.data.qpos = x[0:self.model.nq]
-        self.data.qvel = x[self.model.nq:]
-        self.data.time = t
-        u = self.policy(x,t)
-        self._last_u = u
-        self.data.ctrl = u
-        mujoco.mj_step(self.model, self.data)
-        x_next = np.concatenate([self.data.qpos, self.data.qvel])
+        x_next = self._get_next_state(state, t)
         pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
         cond_pf = FakeStateCondPF(self.ss, pf)
         return SingleBehavior(self.ss, cond_pf)
