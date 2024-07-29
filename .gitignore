@@ -28,3 +28,4 @@ var/
 */*/__pycache__/*
 
 data_driven_legged_locomotion/mjpc/*
+videos/*
