@@ -91,12 +91,12 @@ def get_control(env):
     if len(XX1[i]) > 100:
       XX1[i].pop(0)
       XX2[i].pop(0)
-  init_time = time.time() - init_time
-  print(f"[DEBUG] Initialization time: {init_time}")
-  crowdsourcing_time = time.time()
+  #init_time = time.time() - init_time
+  #print(f"[DEBUG] Initialization time: {init_time}")
+  #crowdsourcing_time = time.time()
   service_list, behavior = crowdsourcing.run()
-  crowdsourcing_time = time.time() - crowdsourcing_time
-  print(f"[DEBUG] Total crowdsourcing time: {crowdsourcing_time}")
+  #crowdsourcing_time = time.time() - crowdsourcing_time
+  #print(f"[DEBUG] Total crowdsourcing time: {crowdsourcing_time}")
   service_index = service_list[0]
   log_row.append(service_index)
   PP.append(service_index)
@@ -110,21 +110,21 @@ with env.launch_passive_viewer() as viewer:
     # Close the viewer automatically after 30 wall-seconds.
     start = time.time()
     while viewer.is_running():
-      print(f"[DEBUG] Iteration start")
+      #print(f"[DEBUG] Iteration start")
       log_row = []
       log_row.append(env.time)
       step_start = time.time()
 
       # Step the simulation forward.
-      control_time = time.time()
+      #control_time = time.time()
       u = get_control(env)
       log_row.append(list(u))
-      control_time = time.time() - control_time
-      print(f"[DEBUG] Total control time: {control_time}")
-      env_setp_time = time.time()
+      #control_time = time.time() - control_time
+      #print(f"[DEBUG] Total control time: {control_time}")
+      #env_setp_time = time.time()
       env.step(u)
-      env_setp_time = time.time() - env_setp_time
-      print(f"[DEBUG] Environment step time: {env_setp_time}")
+      #env_setp_time = time.time() - env_setp_time
+      #print(f"[DEBUG] Environment step time: {env_setp_time}")
 
       # Pick up changes to the physics state, apply perturbations, update options from GUI.
       viewer.sync()
@@ -137,22 +137,22 @@ with env.launch_passive_viewer() as viewer:
           frame_count += 1
           
       # # Plot the agent sequence
-      plt.figure(1)
-      plt.clf()
-      plt.stem(PP)
-      plt.pause(0.0001)
-      plt.figure(2)
-      plt.clf()
-      ax = plt.gca()
-      sigma = 0.01
-      plt.scatter(XX1[0], XX2[0], c='r')
-      plt.scatter(XX1[1], XX2[1], c='b')
-      for i in range(len(XX1[0])):
-        circle1 = plt.Circle((XX1[0][i], XX2[0][i]), sigma*2, color='r', fill=False)
-        circle2 = plt.Circle((XX1[1][i], XX2[1][i]), sigma*2, color='b', fill=False)
-        ax.add_patch(circle1)
-        ax.add_patch(circle2)
-      plt.pause(0.0001)
+      # plt.figure(1)
+      # plt.clf()
+      # plt.stem(PP)
+      # plt.pause(0.0001)
+      # plt.figure(2)
+      # plt.clf()
+      # ax = plt.gca()
+      # sigma = 0.01
+      # plt.scatter(XX1[0], XX2[0], c='r')
+      # plt.scatter(XX1[1], XX2[1], c='b')
+      # for i in range(len(XX1[0])):
+      #   circle1 = plt.Circle((XX1[0][i], XX2[0][i]), sigma*2, color='r', fill=False)
+      #   circle2 = plt.Circle((XX1[1][i], XX2[1][i]), sigma*2, color='b', fill=False)
+      #   ax.add_patch(circle1)
+      #   ax.add_patch(circle2)
+      # plt.pause(0.0001)
 
       # Log the data
       logger.log(logging.DEBUG, log_row)

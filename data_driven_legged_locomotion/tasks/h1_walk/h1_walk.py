@@ -21,9 +21,9 @@ class H1WalkEnvironment(MujocoEnvironment):
         #                            -1.,-1.,-1.,-1., # Free joint angular position
         #                            -0.43, -0.43, -3.14, -0.26, -0.87, -0.43, -0.43, -3.14, -0.26, -0.87, -2.35, -2.87, -0.34, -1.3,  -1.25, -2.87, -3.11, -4.45, -1.25 # Rotoidal joints angular position
         #                            ])
-        upper_q_bounds = np.ones(26)*10
+        upper_q_bounds = np.ones(26)*100
         lower_q_bounds = -upper_q_bounds
-        upper_dq_bounds = np.ones(6+19)*35
+        upper_dq_bounds = np.ones(6+19)*350
         lower_dq_bounds = -upper_dq_bounds
         upper_bounds = np.concatenate([upper_q_bounds, upper_dq_bounds])
         lower_bounds = np.concatenate([lower_q_bounds, lower_dq_bounds])
@@ -36,7 +36,7 @@ class H1WalkEnvironment(MujocoEnvironment):
         super().__init__(ss, model_path)
         
 def h1_walk_cost(x, k):
-    r = np.array([10.0, 10.0])
+    r = np.array([10.0, 0.0])
     costs = (x[:,0] - r[0])**2 + (x[:,1] - r[1])**2
     costs = np.squeeze(costs)
     return costs
