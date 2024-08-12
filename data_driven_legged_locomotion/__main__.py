@@ -32,21 +32,10 @@ XX2 = [[],[]]
 PP = []
 
 # Environment
-#env = PendulumEnvironment()
 env = H1WalkEnvironment()
 ss = env.ss
 model = env.model
 cost = h1_walk_cost
-
-# Video
-video_fps = 60
-video_resolution = (720, 1280)
-frame_count = 0
-
-video_path = experiment_folder / f"h1_walk_{current_datetime}.mp4"
-if not video_path.parent.exists():
-    video_path.parent.mkdir()
-renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
 # Crowdsourcing
 services = ServiceSet(ss)
