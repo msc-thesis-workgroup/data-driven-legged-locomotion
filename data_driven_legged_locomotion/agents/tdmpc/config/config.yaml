@@ -1,12 +1,8 @@
 defaults:
     - override hydra/launcher: submitit_local
 
-# TODO(all): remove useless lines parameters from here
-
-fill_buffer_steps: 0 # TODO(my-rice): consider remove this line from here and the other parts of the code # you have to add the more 5*max_episode_length (5000) steps to this number
-
 # environment
-task: humanoid_h1-walk-v0
+task: h1-walk-v1 #humanoid_h1-walk-v0
 obs: state
 
 # evaluation
@@ -14,7 +10,7 @@ checkpoint: None
 experiment_name: None
 
 eval_episodes: 1
-eval_freq: 30000
+eval_freq: 150000
 
 from_scratch: false
 
@@ -38,10 +34,10 @@ tau: 0.01
 discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
-buffer_size: 1_000_000
+buffer_size: 1_000_000 # default: 1_000_000
 exp_name: tdmpc
-data_dir: ???
-save_freq: 20_000
+data_dir: ??? # This parameter is for the data directory where the data is stored. It is used for the offline RL.
+save_freq: 30_000
 
 # planning
 mpc: true
@@ -49,7 +45,7 @@ iterations: 6
 num_samples: 512
 num_elites: 64
 num_pi_trajs: 24
-horizon: 3
+horizon: 3 # default: 3. TODO(my-rice): Try to increase this parameter to 5 or 7
 min_std: 0.05
 max_std: 2
 temperature: 0.5
@@ -71,14 +67,14 @@ enc_dim: 256
 num_channels: 32
 mlp_dim: 512
 latent_dim: 512
-task_dim: 0 #96 # 0
+task_dim: 0 # I did not understand this parameter. This parameter will be set to 0 by the code. So I don't know what it is for.
 num_q: 5
 dropout: 0.01
 simnorm_dim: 8
 
 # logging
-wandb_project: humanoid-bench
-wandb_entity: robot-learning
+wandb_project: ???
+wandb_entity: ??? 
 wandb_silent: false
 disable_wandb: true
 save_csv: true
@@ -90,21 +86,14 @@ seed: 1
 
 # convenience
 work_dir: ???
-task_title: Humanoid_H1 Walk V0
+task_title: H1 Walk V0
 multitask: false
-tasks: ['humanoid_h1-walk-v0']
+tasks: ['h1-walk-v0']
 obs_shape: {'state': [51]}
 action_dim: 19
 episode_length: 5000
 obs_shapes: ???
 action_dims: ???
 episode_lengths: ???
-seed_steps: 25000 # 5*5000
+seed_steps: 25000
 bin_size: 0.2
-
-# humanoid envs
-policy_path: ???
-mean_path: ???
-var_path: ???
-policy_type: ???
-small_obs: ???

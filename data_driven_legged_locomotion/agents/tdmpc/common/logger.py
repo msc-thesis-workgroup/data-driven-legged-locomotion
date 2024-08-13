@@ -116,7 +116,11 @@ class Logger:
         self._log_dir = make_dir(cfg.work_dir)
         self._model_dir = make_dir(self._log_dir / "models")
         # Create a directory for the current experiment with the name of the task and the date of the experiment
+        
         self._experiment_dir = make_dir(self._model_dir / str(experiment_name + "-" + str(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))) if experiment_name else make_dir(self._model_dir / str("experiment-" + str(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))))
+        # Create a csv file for the training data
+        with open(self._experiment_dir / "train.csv", "w") as f:
+            f.write("episode,step,episode_reward,episode_success\n")
         self._save_csv = cfg.save_csv
         self._save_agent = cfg.save_agent
         self._group = cfg_to_group(cfg)
@@ -266,6 +270,13 @@ class Logger:
                 if category == "results" and k == "step":
                     continue
                 self._wandb.log({category + "/" + k: v}, step=d[xkey])
+        if category == "train" and self._save_csv:
+            #keys = ["step", "episode", "step", "episode_reward", "episode_success"]
+            # save the episode_reward and episode_success in the csv file
+            with open(self._experiment_dir / "train.csv", "a") as f:
+                f.write(f"{d['episode']},{d['step']},{d['episode_reward']},{d['episode_success']}\n")
+
+
         if category == "eval" and self._save_csv:
             keys = ["step", "episode_reward"]
             self._eval.append(np.array([d[keys[0]], d[keys[1]]]))
