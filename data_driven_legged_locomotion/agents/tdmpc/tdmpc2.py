@@ -55,6 +55,8 @@ class TDMPC2:
             else self._get_discount(cfg.episode_length)
         )
 
+        self._prev_mean = None
+
     def _get_discount(self, episode_length):
         """
         Returns discount factor for a given episode length.
@@ -94,6 +96,22 @@ class TDMPC2:
         self.model.load_state_dict(state_dict["model"])
         self.optim.load_state_dict(state_dict["optim"])
         self.pi_optim.load_state_dict(state_dict["pi_optim"])
+    
+    def copy(self):
+        """
+        Create a copy of the agent. [my-rice implementation]
+
+        Returns:
+                TDMPC2: Copy of the agent.
+        """
+        agent = TDMPC2(self.cfg)
+        agent.model.load_state_dict(self.model.state_dict())
+        agent.optim.load_state_dict(self.optim.state_dict())
+        agent.pi_optim.load_state_dict(self.pi_optim.state_dict())
+        if self._prev_mean != None:
+            agent._prev_mean = self._prev_mean.clone() 
+            #print("Copying prev mean", agent._prev_mean)
+        return agent
         
     @torch.no_grad()
     def act(self, obs, t0=False, eval_mode=False, task=None):

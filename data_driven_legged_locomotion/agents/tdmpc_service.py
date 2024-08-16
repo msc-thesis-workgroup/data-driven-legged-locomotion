@@ -1,7 +1,7 @@
 
 from omegaconf import OmegaConf
 from data_driven_legged_locomotion.common.StateSpace import StateSpace
-from data_driven_legged_locomotion.common.ServiceSet import MujocoService
+from data_driven_legged_locomotion.common.ServiceSet import MujocoService, Behavior, SingleBehavior, NormalStatePF, FakeStateCondPF
 import numpy as np
 import os
 import pathlib
@@ -9,11 +9,41 @@ from data_driven_legged_locomotion.agents.tdmpc.tdmpc2 import TDMPC2
 
 import torch
 from pyquaternion import Quaternion
+import copy
+import mujoco
+
+import gc
+
 
 DEFAULT_CONFIG_PATH = "./config/config.yaml"
  
 DEFAULT_TARGET_DIRECTION = np.array([0.0, 0.0, 0.98, 1.0, 0.0, 0.0, 0.0]) # The neural network is trained with this reference to understand the direction of the movement.
 DEFAULT_REFERENCE_DIRECTION = DEFAULT_TARGET_DIRECTION # The target direction of the movement.
+
+
+def _compute_joint_torques(data: mujoco.MjData, model: mujoco.MjModel, action: np.array) -> np.array:
+    d = data
+    m = model
+
+    kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
+    kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])
+    action_high = np.array([0.43, 0.43, 2.53, 2.05, 0.52, 0.43, 0.43, 2.53, 2.05, 0.52, 2.35, 2.87, 3.11, 4.45, 2.61, 2.87, 0.34, 1.3, 2.61])
+    action_low = np.array([-0.43, -0.43, -3.14, -0.26, -0.87, -0.43, -0.43, -3.14, -0.26, -0.87, -2.35, -2.87, -0.34, -1.3,  -1.25, -2.87, -3.11, -4.45, -1.25])
+
+    ctrl = (action + 1) / 2 * (action_high - action_low) + action_low
+            
+    actuator_length = d.actuator_length
+    error = ctrl - actuator_length
+
+    empty_array = np.zeros(m.actuator_dyntype.shape)
+    
+    ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
+    
+    error_dot = ctrl_dot - d.actuator_velocity
+    
+    joint_torques = kp*error + kd*error_dot
+
+    return joint_torques
 
 class TDMPCService(MujocoService):
 
@@ -62,28 +92,7 @@ class TDMPCService(MujocoService):
 
 
     def _get_joint_torques(self, action: np.array) -> np.array:
-        d = self.data
-        m = self.model
-
-        kp = np.array([200, 200, 200, 300, 40, 200, 200, 200, 300, 40, 300, 100, 100, 100, 100, 100, 100, 100, 100])
-        kd = np.array([5, 5, 5, 6, 2, 5, 5, 5, 6, 2, 6, 2, 2, 2, 2, 2, 2, 2, 2])
-        action_high = np.array([0.43, 0.43, 2.53, 2.05, 0.52, 0.43, 0.43, 2.53, 2.05, 0.52, 2.35, 2.87, 3.11, 4.45, 2.61, 2.87, 0.34, 1.3, 2.61])
-        action_low = np.array([-0.43, -0.43, -3.14, -0.26, -0.87, -0.43, -0.43, -3.14, -0.26, -0.87, -2.35, -2.87, -0.34, -1.3,  -1.25, -2.87, -3.11, -4.45, -1.25])
-
-        ctrl = (action + 1) / 2 * (action_high - action_low) + action_low
-                
-        actuator_length = d.actuator_length
-        error = ctrl - actuator_length
-
-        empty_array = np.zeros(m.actuator_dyntype.shape)
-        
-        ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
-        
-        error_dot = ctrl_dot - d.actuator_velocity
-        
-        joint_torques = kp*error + kd*error_dot
-
-        return joint_torques
+        return _compute_joint_torques(self.data, self.model, action)
 
     def set_policy_reference(self, policy_reference: np.array):
         """Sets the policy reference. The policy reference is the desired direction of the movement for the agent."""
@@ -109,6 +118,10 @@ class TDMPCService(MujocoService):
     def _policy(self, x: np.array, t: float = 0.0) -> np.array:
         """Returns the action given the state."""
         
+        # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.
+        x[0] = 0.0
+        x[1] = 0.0
+
         x = self._generalize_walk_direction(x)
         x = torch.tensor(x, dtype=torch.float32)
         #print("X: ", x)
@@ -160,3 +173,80 @@ class TDMPCService(MujocoService):
         obs[26:29] = torch.from_numpy(new_vel).type(torch.FloatTensor)
 
         return obs
+
+
+class TDMPCServiceV2(TDMPCService):
+    def __init__(self, ss: StateSpace, model, variances: float = None, agent_horizon: int = 1):
+        super().__init__(ss, model, variances)
+        self.agent_horizon = agent_horizon
+    
+    def set_data(self, data):
+        self.data = data
+
+    def _get_next_state(self, state: np.ndarray, t: float = 0) -> np.ndarray:
+        
+        self.agent_copy = self.agent #.copy()
+        data = copy.deepcopy(self.data)
+
+        # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.
+        old_state_0 = state[0]
+        old_state_1 = state[1]
+        
+        state[0] = 0.0
+        state[1] = 0.0
+
+        control_trajectory = np.zeros((self.agent_horizon, self.model.nu))
+        state_trajectory = np.zeros((self.agent_horizon, self.model.nq + self.model.nv)) # self.model.nq + self.model.nv = 26 + 25 = 51
+
+
+        for i in range(self.agent_horizon):
+            state = self._generalize_walk_direction(state)
+            if i % 50 == 0:
+                print("state:", state[0], state[1])
+            state = torch.tensor(state, dtype=torch.float32)
+            action = self.agent_copy.act(state, t0=t == 0, task=None)
+            t += 0.002
+            action = action.detach().numpy()
+            #print("Action pre: ", action)
+            u = _compute_joint_torques(data, self.model, action)
+            
+            control_trajectory[i] = u
+            
+            data.ctrl = u
+            mujoco.mj_step(self.model, data)
+            state = np.concatenate([data.qpos, data.qvel])
+            
+            state_trajectory[i] = state
+            state[0] = 0 # -= old_state_0
+            state[1] = 0 #-= old_state_1
+
+            
+
+        
+        self._last_u = control_trajectory[0]
+        self.u_trajectory = control_trajectory.copy()
+        
+        del data
+        del control_trajectory
+        gc.collect()
+
+        return state_trajectory
+    
+    def get_agent_copy(self):
+        return self.agent_copy
+
+    def set_agent_copy(self, agent_copy):
+        self.agent = agent_copy
+        del self.agent_copy
+        gc.collect()
+
+
+    def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
+        """Generates a behavior for the given state."""
+        if N > 1:
+            raise ValueError("MujocoService only supports N=1.")
+        x_next = self._get_next_state(state, t)[0]
+        pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
+        cond_pf = FakeStateCondPF(self.ss, pf)
+        return SingleBehavior(self.ss, cond_pf)
+            

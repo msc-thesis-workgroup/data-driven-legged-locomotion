@@ -40,3 +40,25 @@ def h1_walk_cost(x, k):
     costs = (x[:,0] - r[0])**2 + (x[:,1] - r[1])**2
     costs = np.squeeze(costs)
     return costs
+
+
+
+def h1_walk_cost_trajectory(states, k):
+    r = np.array([10.0, 10.0])
+    obstacle = np.array([4.0, 4.0])
+    cost = 0
+
+    # length = states.shape[0]
+    # alpha = 1/length
+    # for i in range(length):
+    #     cost += alpha*((states[i,0] - r[0])**2 + (states[i,1] - r[1])**2)
+    #     alpha = alpha + 1/length
+    
+    cost = (states[-1,0] - r[0])**2 + (states[-1,1] - r[1])**2
+
+    # create a gaussian obstacle centered at obstacle with variance var
+    var = 1.5
+    coeff = 20
+    cost += coeff*np.exp(-((states[-1,0] - obstacle[0])**2 + (states[-1,1] - obstacle[1])**2)/(2*var))
+
+    return cost
