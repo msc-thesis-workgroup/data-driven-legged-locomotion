@@ -17,6 +17,9 @@ var/
 .installed.cfg
 *.egg
 
+# Experiments
+experiments/
+
 # LOGS
 *LOG*
 
