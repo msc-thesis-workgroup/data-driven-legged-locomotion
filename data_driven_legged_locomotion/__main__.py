@@ -8,7 +8,7 @@ import mujoco
 import mujoco.viewer as viewer
 import time
 
-from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCService
+from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCServiceV2 as MujocoMPCService
 from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 from data_driven_legged_locomotion.utils import CsvFormatter
