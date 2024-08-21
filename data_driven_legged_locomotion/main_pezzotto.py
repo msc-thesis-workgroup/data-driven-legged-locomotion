@@ -71,14 +71,18 @@ def get_control(env):
   state_trajectory = []
   costs = []
 
+  # Get the next state for each service
   for index,service in enumerate(services.services):
     service.set_data(env.data)
     state_trajectory.append(service._get_next_state(x,env.time))
     
+    # workaround to get the cost of the service without using the crowdsourcing algorithm
     costs.append(h1_walk_cost_trajectory(state_trajectory[index],env.time))
     print(f"[DEBUG] Service {index} cost: {costs[index]} ")
   
   service_index = np.argmin(costs)
+
+  # Set the agent of the selected service to the other services to synchronize the agents
   agent = services.services[service_index].get_agent_copy()
   for index,service in enumerate(services.services):
     if index != service_index:
