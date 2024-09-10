@@ -57,7 +57,7 @@ def _compute_joint_torques(data: mujoco.MjData, model: mujoco.MjModel, desired_q
 
 class HybridTDMPCService(MujocoService):
 
-    def __init__(self, ss: StateSpace, model,variances: float = None):
+    def __init__(self, ss: StateSpace, model,variances: float = None, zoh: bool = True):
         super().__init__(ss, model, variances)
         
         base_path = pathlib.Path(__file__).parent
@@ -96,6 +96,7 @@ class HybridTDMPCService(MujocoService):
         self.target_reference = DEFAULT_TARGET_DIRECTION
         self.transformation_quat = None
         self.policy_reference = None
+        self.zoh = zoh
 
         self.set_policy_reference(DEFAULT_REFERENCE_DIRECTION)
         self._setup_agent(config_path, agent_path)
@@ -131,15 +132,12 @@ class HybridTDMPCService(MujocoService):
     def _policy(self, x: np.array, t: float = 0.0) -> np.array:
         """Returns the action given the state."""
         
-
-        print("_policy called")
         # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.
         x = copy.deepcopy(x)
         x[0] = 0.0
         x[1] = 0.0
 
         # Hybrid TD-MPC: The agent sees only a subset of x.
-
         x = self._generalize_walk_direction(x).numpy()
         
         x_tdmpc = self._convert_stato_to_TDMPC_state(x)
@@ -147,17 +145,19 @@ class HybridTDMPCService(MujocoService):
         action = self.agent.act(x_tdmpc, t0=self.t == 0, task=None)
         self.t += 1
         action = action.detach().numpy()
-        #print("Action pre: ", action)
-
-        # action_lowerbody = self._get_joint_torques(action)
-        # action_upperbody = self._get_joint_torques(np.zeros(8),lower_body=False)
-        # action = np.concatenate([action_lowerbody, action_upperbody])
         action = np.concatenate([action, np.zeros(8)])
         desired_joint_pos = unnorm_action(action)
         desired_joint_pos[-8:] = np.zeros(8)
-        desired_joint_pos = self._get_joint_torques(desired_joint_pos)
-        #print("Action: ", action,"len(desired_joint_pos): ", len(desired_joint_pos))
-        return desired_joint_pos
+        
+        if self.zoh:
+            self.control_trajectory = []
+            for _ in range(5):
+                u = self._get_joint_torques(desired_joint_pos)
+                self.control_trajectory.append(u)
+        else:
+            u = self._get_joint_torques(desired_joint_pos)
+
+        return u
     
     def _convert_stato_to_TDMPC_state(self, x: np.array) -> np.array:
         x_tdmpc = np.concatenate([x[0:18], x[26:43]]) # x_tdmpc = [x[0:18], x[26:43]] [x[0:26-8], x[26:51-8]]

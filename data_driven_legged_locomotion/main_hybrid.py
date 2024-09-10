@@ -46,14 +46,18 @@ if not video_path.parent.exists():
 		video_path.parent.mkdir()
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
-hybrid_service = HybridTDMPCService(ss, model)
+# Services
+variances = np.ones(ss.n_states) * 0.000001
+hybrid_service = HybridTDMPCService(ss, model, variances=variances, zoh=True)
 services.addService(hybrid_service)
-hybrid_service_2 = HybridTDMPCService(ss, model)
+hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, zoh=True)
 hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
 services.addService(hybrid_service_2)
 
+# Crowdsourcing
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
 
+# Logging header
 log_header = ["Time", "State"]
 log_header = log_header + [f"Service_{i}_NextState" for i,_ in enumerate(services.services)]
 log_header = log_header + ["Service_Index", "Control"]
@@ -64,6 +68,7 @@ def get_control(env):
 	x = env.get_state()
 	log_row.append(list(x))
 
+	# Update the data for the services
 	for index,service in enumerate(services.services):
 		service.set_data(env.data)
 
@@ -77,7 +82,10 @@ def get_control(env):
 	log_row.append(service_index)
 
 	u = services.services[service_index].last_u
-	return u
+	#return u
+
+	u_traj = services.services[service_index].control_trajectory
+	return u_traj
 
 with env.launch_passive_viewer() as viewer:
 	with media.VideoWriter(video_path, fps=video_fps, shape=video_resolution) as video:
@@ -89,9 +97,11 @@ with env.launch_passive_viewer() as viewer:
 			step_start = time.time()
 
 			# Step the simulation forward.
-			u = get_control(env)
-			log_row.append(list(u))
-			env.step(u)
+			#u = get_control(env)
+			u_traj = get_control(env)
+			for u in u_traj:
+				log_row.append(list(u))
+				env.step(u)
 
 			# Pick up changes to the physics state, apply perturbations, update options from GUI.
 			viewer.sync()
