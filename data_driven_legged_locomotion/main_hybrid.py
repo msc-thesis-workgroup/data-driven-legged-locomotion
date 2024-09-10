@@ -19,7 +19,7 @@ current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 experiment_name = f"h1_walk_{current_datetime}"
 experiment_folder = Path(__file__).parent.parent / "experiments" / experiment_name
 if not experiment_folder.exists():
-    experiment_folder.mkdir(parents=True)
+		experiment_folder.mkdir(parents=True)
 
 # Logging
 logger = logging.getLogger(__name__)
@@ -43,15 +43,8 @@ frame_count = 0
 current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 video_path = Path(__file__).parent.parent / "videos" / f"h1_walk_{current_datetime}.mp4"
 if not video_path.parent.exists():
-    video_path.parent.mkdir()
+		video_path.parent.mkdir()
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
-
-
-#mujoco_tdmpc_service = TDMPCService(ss, model)
-#mujoco_tdmpc_service_2 = TDMPCService(ss, model)
-#mujoco_tdmpc_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-#services.addService(mujoco_tdmpc_service)
-#services.addService(mujoco_tdmpc_service_2)
 
 hybrid_service = HybridTDMPCService(ss, model)
 services.addService(hybrid_service)
@@ -68,53 +61,53 @@ logger.log(logging.INFO, log_header)
 log_row = []
 
 def get_control(env):
-  x = env.get_state()
-  log_row.append(list(x))
+	x = env.get_state()
+	log_row.append(list(x))
 
-  for index,service in enumerate(services.services):
-    service.set_data(env.data)
+	for index,service in enumerate(services.services):
+		service.set_data(env.data)
 
-  crowdsourcing.initialize(x, time=env.time)
-  for i in range(len(services.services)):
-    next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
-    log_row.append(list(next_state))
-  service_list, behavior = crowdsourcing.run()
-  service_index = service_list[0]
-  print(f"[DEBUG] Service index: {service_index}")
-  log_row.append(service_index)
+	crowdsourcing.initialize(x, time=env.time)
+	for i in range(len(services.services)):
+		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
+		log_row.append(list(next_state))
+	service_list, behavior = crowdsourcing.run()
+	service_index = service_list[0]
+	print(f"[DEBUG] Service index: {service_index}")
+	log_row.append(service_index)
 
-  u = services.services[service_index].last_u
-  return u
+	u = services.services[service_index].last_u
+	return u
 
 with env.launch_passive_viewer() as viewer:
-  with media.VideoWriter(video_path, fps=video_fps, shape=video_resolution) as video:
-    # Close the viewer automatically after 30 wall-seconds.
-    start = time.time()
-    while viewer.is_running():
-      log_row = []
-      log_row.append(env.time)
-      step_start = time.time()
+	with media.VideoWriter(video_path, fps=video_fps, shape=video_resolution) as video:
+		# Close the viewer automatically after 30 wall-seconds.
+		start = time.time()
+		while viewer.is_running():
+			log_row = []
+			log_row.append(env.time)
+			step_start = time.time()
 
-      # Step the simulation forward.
-      u = get_control(env)
-      log_row.append(list(u))
-      env.step(u)
+			# Step the simulation forward.
+			u = get_control(env)
+			log_row.append(list(u))
+			env.step(u)
 
-      # Pick up changes to the physics state, apply perturbations, update options from GUI.
-      viewer.sync()
-      
-      # Render video
-      if frame_count < env.time * video_fps:
-          renderer.update_scene(env.data, camera="top")
-          pixels = renderer.render()
-          video.add_image(pixels)
-          frame_count += 1
-          
+			# Pick up changes to the physics state, apply perturbations, update options from GUI.
+			viewer.sync()
+			
+			# Render video
+			if frame_count < env.time * video_fps:
+					renderer.update_scene(env.data, camera="top")
+					pixels = renderer.render()
+					video.add_image(pixels)
+					frame_count += 1
+					
 
-      # Log the data
-      logger.log(logging.DEBUG, log_row)
-      
-      # Rudimentary time keeping, will drift relative to wall clock.
-      time_until_next_step = env.timestep - (time.time() - step_start)
-      if time_until_next_step > 0:
-        time.sleep(time_until_next_step)
+			# Log the data
+			logger.log(logging.DEBUG, log_row)
+			
+			# Rudimentary time keeping, will drift relative to wall clock.
+			time_until_next_step = env.timestep - (time.time() - step_start)
+			if time_until_next_step > 0:
+				time.sleep(time_until_next_step)
