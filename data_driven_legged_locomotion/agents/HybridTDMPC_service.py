@@ -134,7 +134,7 @@ class HybridTDMPCService(MujocoService):
 
         print("_policy called")
         # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.
-        x = x.copy()
+        x = copy.deepcopy(x)
         x[0] = 0.0
         x[1] = 0.0
 
@@ -153,11 +153,11 @@ class HybridTDMPCService(MujocoService):
         # action_upperbody = self._get_joint_torques(np.zeros(8),lower_body=False)
         # action = np.concatenate([action_lowerbody, action_upperbody])
         action = np.concatenate([action, np.zeros(8)])
-        action = unnorm_action(action)
-        action[-8:] = np.zeros(8)
-        action = self._get_joint_torques(action)
-        #print("Action: ", action,"len(action): ", len(action))
-        return action
+        desired_joint_pos = unnorm_action(action)
+        desired_joint_pos[-8:] = np.zeros(8)
+        desired_joint_pos = self._get_joint_torques(desired_joint_pos)
+        #print("Action: ", action,"len(desired_joint_pos): ", len(desired_joint_pos))
+        return desired_joint_pos
     
     def _convert_stato_to_TDMPC_state(self, x: np.array) -> np.array:
         x_tdmpc = np.concatenate([x[0:18], x[26:43]]) # x_tdmpc = [x[0:18], x[26:43]] [x[0:26-8], x[26:51-8]]
@@ -208,56 +208,56 @@ class HybridTDMPCService(MujocoService):
         return obs
 
 
-class HybridTDMPCServiceV2(HybridTDMPCService):
-    def __init__(self, ss: StateSpace, model, variances: float = None, agent_horizon: int = 1):
-        super().__init__(ss, model, variances)
-        self.agent_horizon = agent_horizon
+# class HybridTDMPCServiceV2(HybridTDMPCService):
+#     def __init__(self, ss: StateSpace, model, variances: float = None, agent_horizon: int = 1):
+#         super().__init__(ss, model, variances)
+#         self.agent_horizon = agent_horizon
     
-    def set_data(self, data):
-        self.data = data
+#     def set_data(self, data):
+#         self.data = data
 
-    def _get_next_state(self, state: np.ndarray, t: float = 0) -> np.ndarray:
+#     def _get_next_state(self, state: np.ndarray, t: float = 0) -> np.ndarray:
         
-        self.agent_copy = self.agent #.copy()
-        data = copy.deepcopy(self.data)
+#         self.agent_copy = self.agent #.copy()
+#         data = copy.deepcopy(self.data)
 
-        # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.        
-        state = self._generalize_walk_direction(state)
-        state = self._convert_stato_to_TDMPC_state(state)
+#         # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.        
+#         state = self._generalize_walk_direction(state)
+#         state = self._convert_stato_to_TDMPC_state(state)
 
-        state[0] = 0.0
-        state[1] = 0.0
+#         state[0] = 0.0
+#         state[1] = 0.0
 
-        state = torch.tensor(state, dtype=torch.float32)
-        action = self.agent_copy.act(state, t0=t == 0, task=None)
-        action = action.detach().numpy()
-        action = np.concatenate([action, np.zeros(8)])
-        action = unnorm_action(action)
-        action[-8:] = np.zeros(8)
+#         state = torch.tensor(state, dtype=torch.float32)
+#         action = self.agent_copy.act(state, t0=t == 0, task=None)
+#         action = action.detach().numpy()
+#         action = np.concatenate([action, np.zeros(8)])
+#         action = unnorm_action(action)
+#         action[-8:] = np.zeros(8)
         
-        self.control_trajectory = []
+#         self.control_trajectory = []
 
-        for i in range(self.agent_horizon):
-            #t += 0.002
-            u = _compute_joint_torques(data=data, model=self.model, desired_q_pos=action)
+#         for i in range(self.agent_horizon):
+#             #t += 0.002
+#             u = _compute_joint_torques(data=data, model=self.model, desired_q_pos=action)
             
-            self.control_trajectory.append(u)
+#             self.control_trajectory.append(u)
 
-            data.ctrl = u
-            mujoco.mj_step(self.model, data)
+#             data.ctrl = u
+#             mujoco.mj_step(self.model, data)
 
-            self._last_u = u
+#             self._last_u = u
         
 
-        state = np.concatenate([data.qpos, data.qvel])
-        del data
-        gc.collect()
-        return state
+#         state = np.concatenate([data.qpos, data.qvel])
+#         del data
+#         gc.collect()
+#         return state
     
-    def get_agent_copy(self):
-        return self.agent_copy
+#     def get_agent_copy(self):
+#         return self.agent_copy
 
-    def set_agent_copy(self, agent_copy):
-        self.agent = agent_copy
-        del self.agent_copy
-        gc.collect()
+#     def set_agent_copy(self, agent_copy):
+#         self.agent = agent_copy
+#         del self.agent_copy
+#         gc.collect()
