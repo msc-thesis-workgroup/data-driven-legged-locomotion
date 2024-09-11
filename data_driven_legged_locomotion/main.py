@@ -13,6 +13,7 @@ from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_wa
 from data_driven_legged_locomotion.utils import CsvFormatter
 
 from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
+from data_driven_legged_locomotion.agents.HybridTDMPC_service import HybridTDMPCService
 
 # Experiment info+
 current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -51,11 +52,17 @@ if not video_path.parent.exists():
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
 
-mujoco_tdmpc_service = TDMPCService(ss, model)
+#mujoco_tdmpc_service = TDMPCService(ss, model)
 #mujoco_tdmpc_service_2 = TDMPCService(ss, model)
 #mujoco_tdmpc_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-services.addService(mujoco_tdmpc_service)
+#services.addService(mujoco_tdmpc_service)
 #services.addService(mujoco_tdmpc_service_2)
+
+hybrid_service = HybridTDMPCService(ss, model)
+services.addService(hybrid_service)
+hybrid_service_2 = HybridTDMPCService(ss, model)
+hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+services.addService(hybrid_service_2)
 
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
 
@@ -71,6 +78,10 @@ def get_control(env):
   q, dot_q = env.get_state(split=True)
   x_index = ss.toIndex(x)
   init_time = time.time()
+
+  for index,service in enumerate(services.services):
+    service.set_data(env.data)
+
   crowdsourcing.initialize(x, time=env.time)
   for i in range(len(services.services)):
     next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
@@ -87,6 +98,7 @@ def get_control(env):
   #crowdsourcing_time = time.time() - crowdsourcing_time
   #print(f"[DEBUG] Total crowdsourcing time: {crowdsourcing_time}")
   service_index = service_list[0]
+  print(f"[DEBUG] Service index: {service_index}")
   log_row.append(service_index)
   PP.append(service_index)
   if len(PP) > 100:
@@ -144,7 +156,7 @@ with env.launch_passive_viewer() as viewer:
       # plt.pause(0.0001)
 
       # Log the data
-      logger.log(logging.DEBUG, log_row)
+      #logger.log(logging.DEBUG, log_row)
       
       # Rudimentary time keeping, will drift relative to wall clock.
       time_until_next_step = env.timestep - (time.time() - step_start)

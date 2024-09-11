@@ -15,7 +15,7 @@ import mujoco
 import gc
 
 
-DEFAULT_CONFIG_PATH = "./config/config.yaml"
+DEFAULT_CONFIG_PATH = "./config_h1/config.yaml"
  
 DEFAULT_TARGET_DIRECTION = np.array([0.0, 0.0, 0.98, 1.0, 0.0, 0.0, 0.0]) # The neural network is trained with this reference to understand the direction of the movement.
 DEFAULT_REFERENCE_DIRECTION = DEFAULT_TARGET_DIRECTION # The target direction of the movement.
@@ -55,7 +55,7 @@ class TDMPCService(MujocoService):
         config_path_candidates = [path for path in pathlib.Path(base_path).rglob("config.yaml")]
         print("[DEBUG] server_binary_candidates: ", config_path_candidates)
         
-        agent_path_candidates = [path for path in pathlib.Path(base_path).rglob("*.pt")]
+        agent_path_candidates = [path for path in pathlib.Path(base_path).rglob("step-*.pt")]
         print("[DEBUG] agent_path_candidates: ", agent_path_candidates)
         
 
@@ -155,6 +155,8 @@ class TDMPCService(MujocoService):
         
     def _generalize_walk_direction(self,obs: np.array):
         
+        # TODO Convert types to Float 64 to avoid possible quantization errors
+
         transformation_quat = self.transformation_quat
 
         current_quat = Quaternion(obs[3:7])  # Convert tensor slice to numpy array for Quaternion
@@ -220,9 +222,6 @@ class TDMPCServiceV2(TDMPCService):
             state[0] = 0 # -= old_state_0
             state[1] = 0 #-= old_state_1
 
-            
-
-        
         self._last_u = control_trajectory[0]
         self.u_trajectory = control_trajectory.copy()
         
@@ -230,7 +229,7 @@ class TDMPCServiceV2(TDMPCService):
         del control_trajectory
         gc.collect()
 
-        return state_trajectory
+        return state_trajectory[-1]
     
     def get_agent_copy(self):
         return self.agent_copy
@@ -240,13 +239,12 @@ class TDMPCServiceV2(TDMPCService):
         del self.agent_copy
         gc.collect()
 
-
-    def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
-        """Generates a behavior for the given state."""
-        if N > 1:
-            raise ValueError("MujocoService only supports N=1.")
-        x_next = self._get_next_state(state, t)[0]
-        pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
-        cond_pf = FakeStateCondPF(self.ss, pf)
-        return SingleBehavior(self.ss, cond_pf)
+    # def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
+    #     """Generates a behavior for the given state."""
+    #     if N > 1:
+    #         raise ValueError("MujocoService only supports N=1.")
+    #     x_next = self._get_next_state(state, t)[0]
+    #     pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
+    #     cond_pf = FakeStateCondPF(self.ss, pf)
+    #     return SingleBehavior(self.ss, cond_pf)
             
