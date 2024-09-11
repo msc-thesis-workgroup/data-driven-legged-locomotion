@@ -36,9 +36,12 @@ class H1WalkEnvironment(MujocoEnvironment):
         super().__init__(ss, model_path)
         
 def h1_walk_cost(x, k):
-    r = np.array([10.0, 0.0])
+    r = np.array([10.0, 10.0])
+    z_torso = 1.06
+    #obs = np.array([4,4])
     costs = (x[:,0] - r[0])**2 + (x[:,1] - r[1])**2
     costs = np.squeeze(costs)
+    costs += (x[:,2] - z_torso)**2
     return costs
 
 def h1_walk_cost_trajectory(x, k):

@@ -163,7 +163,8 @@ class HybridTDMPCService(MujocoService):
         as the control action used to reach the next state."""
         
         x = copy.deepcopy(state)
-        data_copy = copy.deepcopy(self.data)
+        #data_copy = copy.deepcopy(self.data)
+        data_copy = self.data
         agent_copy = self.agent
 
         x[0] = 0.0
@@ -196,10 +197,10 @@ class HybridTDMPCService(MujocoService):
 
         next_state = np.concatenate([data_copy.qpos, data_copy.qvel])
         # self._last_u = u
-        # self.data.qpos = copy.deepcopy(state[0:self.model.nq])
-        # self.data.qvel = copy.deepcopy(state[self.model.nq:])
-        # self.data.time = t
-        # self.data.ctrl = u.copy()
+        self.data.qpos = copy.deepcopy(state[0:self.model.nq])
+        self.data.qvel = copy.deepcopy(state[self.model.nq:])
+        self.data.time = t
+        self.data.ctrl = u.copy()
         return next_state
 
     def _convert_stato_to_TDMPC_state(self, x: np.array) -> np.array:

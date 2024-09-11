@@ -57,6 +57,9 @@ hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_hori
 #hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
 hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
 services.addService(hybrid_service_2)
+hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+services.addService(hybrid_service_3)
 
 # Crowdsourcing
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
