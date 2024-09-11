@@ -48,10 +48,14 @@ renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolu
 
 # Services
 variances = np.ones(ss.n_states) * 0.000001
-hybrid_service = HybridTDMPCService(ss, model, variances=variances, zoh=True)
+
+FRAME_SKIP = 1
+AGENT_HORIZON = 100
+hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
 services.addService(hybrid_service)
-hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, zoh=True)
-hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+#hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
 services.addService(hybrid_service_2)
 
 # Crowdsourcing
@@ -66,7 +70,7 @@ log_row = []
 
 def get_control(env):
 	x = env.get_state()
-	log_row.append(list(x))
+	#log_row.append(list(x))
 
 	# Update the data for the services
 	for index,service in enumerate(services.services):
@@ -75,14 +79,19 @@ def get_control(env):
 	crowdsourcing.initialize(x, time=env.time)
 	for i in range(len(services.services)):
 		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
-		log_row.append(list(next_state))
+		#log_row.append(list(next_state))
 	service_list, behavior = crowdsourcing.run()
 	service_index = service_list[0]
 	print(f"[DEBUG] Service index: {service_index}")
-	log_row.append(service_index)
+	#log_row.append(service_index)
 
-	u = services.services[service_index].last_u
+	#u = services.services[service_index].last_u
 	#return u
+
+	# agent = services.services[service_index].get_agent_copy()
+	# for index,service in enumerate(services.services):
+	# 	if index != service_index:
+	# 		service.set_agent_copy(agent)
 
 	u_traj = services.services[service_index].control_trajectory
 	return u_traj
@@ -92,30 +101,30 @@ with env.launch_passive_viewer() as viewer:
 		# Close the viewer automatically after 30 wall-seconds.
 		start = time.time()
 		while viewer.is_running():
-			log_row = []
-			log_row.append(env.time)
+			#log_row = []
+			#log_row.append(env.time)
 			step_start = time.time()
 
 			# Step the simulation forward.
 			#u = get_control(env)
 			u_traj = get_control(env)
 			for u in u_traj:
-				log_row.append(list(u))
+				#log_row.append(list(u))
 				env.step(u)
 
-			# Pick up changes to the physics state, apply perturbations, update options from GUI.
-			viewer.sync()
-			
-			# Render video
-			if frame_count < env.time * video_fps:
+				# Pick up changes to the physics state, apply perturbations, update options from GUI.
+				viewer.sync()
+				
+				# Render video
+				if frame_count < env.time * video_fps:
 					renderer.update_scene(env.data, camera="top")
 					pixels = renderer.render()
 					video.add_image(pixels)
 					frame_count += 1
 					
 
-			# Log the data
-			logger.log(logging.DEBUG, log_row)
+				# Log the data
+				#logger.log(logging.DEBUG, log_row)
 			
 			# Rudimentary time keeping, will drift relative to wall clock.
 			time_until_next_step = env.timestep - (time.time() - step_start)
