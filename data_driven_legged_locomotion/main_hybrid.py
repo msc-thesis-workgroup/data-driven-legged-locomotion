@@ -53,13 +53,13 @@ FRAME_SKIP = 1
 AGENT_HORIZON = 100
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
 services.addService(hybrid_service)
-hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
-#hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
-services.addService(hybrid_service_2)
-hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
-hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-services.addService(hybrid_service_3)
+# hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+# #hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+# hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
+# services.addService(hybrid_service_2)
+# hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+# hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+# services.addService(hybrid_service_3)
 
 # Crowdsourcing
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
@@ -99,6 +99,35 @@ def get_control(env):
 	u_traj = services.services[service_index].control_trajectory
 	return u_traj
 
+def get_next_state(env):
+	x = env.get_state()
+	#log_row.append(list(x))
+
+	# Update the data for the services
+	for index,service in enumerate(services.services):
+		service.set_data(env.data)
+
+	crowdsourcing.initialize(x, time=env.time)
+	for i in range(len(services.services)):
+		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
+		#log_row.append(list(next_state))
+	service_list, behavior = crowdsourcing.run()
+	service_index = service_list[0]
+	print(f"[DEBUG] Service index: {service_index}")
+	#log_row.append(service_index)
+
+	#u = services.services[service_index].last_u
+	#return u
+
+	# agent = services.services[service_index].get_agent_copy()
+	# for index,service in enumerate(services.services):
+	# 	if index != service_index:
+	# 		service.set_agent_copy(agent)
+
+	desired_state = crowdsourcing._behaviors.behaviors[service_index].getAtTime(0).pf.mean
+	return desired_state
+
+
 with env.launch_passive_viewer() as viewer:
 	with media.VideoWriter(video_path, fps=video_fps, shape=video_resolution) as video:
 		# Close the viewer automatically after 30 wall-seconds.
@@ -109,26 +138,36 @@ with env.launch_passive_viewer() as viewer:
 			step_start = time.time()
 
 			# Step the simulation forward.
+			
+			# Sol 1
 			#u = get_control(env)
-			u_traj = get_control(env)
-			for u in u_traj:
-				#log_row.append(list(u))
-				env.step(u)
 
-				# Pick up changes to the physics state, apply perturbations, update options from GUI.
-				viewer.sync()
-				
-				# Render video
-				if frame_count < env.time * video_fps:
-					renderer.update_scene(env.data, camera="top")
-					pixels = renderer.render()
-					video.add_image(pixels)
-					frame_count += 1
+			# Sol 2
+			# u_traj = get_control(env)
+			# for u in u_traj:
+			# 	#log_row.append(list(u))
+			# 	env.step(u)
+
+			# 	# Pick up changes to the physics state, apply perturbations, update options from GUI.
+			# 	viewer.sync()
+			# 	# Render video
+			# 	if frame_count < env.time * video_fps:
+			# 		renderer.update_scene(env.data, camera="top")
+			# 		pixels = renderer.render()
+			# 		video.add_image(pixels)
+			# 		frame_count += 1
 					
 
-				# Log the data
-				#logger.log(logging.DEBUG, log_row)
-			
+			# 	# Log the data
+			# 	#logger.log(logging.DEBUG, log_row)
+
+			# Sol 3
+
+			x_state = get_next_state(env)
+			frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
+			env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
+
+
 			# Rudimentary time keeping, will drift relative to wall clock.
 			time_until_next_step = env.timestep - (time.time() - step_start)
 			if time_until_next_step > 0:
