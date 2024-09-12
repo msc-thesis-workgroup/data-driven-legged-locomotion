@@ -3,12 +3,13 @@ import numpy as np
 from pathlib import Path
 from .StateSpace import StateSpace
 from scipy.spatial.transform import Rotation as R
-from scipy.spatial.transform import RotationSpline
+import xml.etree.ElementTree as ET
 
 
 class MujocoEnvironment:
     def __init__(self, ss: StateSpace, model_path: Path) -> None:
         self.ss = ss
+        self.model_path = model_path
         model_path = str(model_path)
         self.model = mujoco.MjModel.from_xml_path(model_path)
         self.n_states = self.model.nq + self.model.nv
@@ -46,6 +47,54 @@ class MujocoEnvironment:
     def launch_passive_viewer(self):
         return mujoco.viewer.launch_passive(self.model, self.data)
     
+
+
+    def create_obstacles(self, obstacle_positions, obstacle_sizes, obstacle_rgba=None):
+        """
+        Dynamically adds obstacles to the MJCF (XML) model based on positions and sizes.
+        
+        Args:
+            xml_path (str): Path to the original XML file (model without obstacles).
+            new_xml_path (str): Path to save the new XML file (model with obstacles).
+            obstacle_positions (list of list): A list of [x, y, z] positions for each obstacle.
+            obstacle_sizes (list of list): A list of [x_size, y_size, z_size] for each obstacle.
+            obstacle_rgba (list of list): Optional list of RGBA colors for each obstacle.
+                                        Default is red for all obstacles.
+        """
+        # Load the original XML file
+        tree = ET.parse(str(self.model_path))
+        root = tree.getroot()
+
+        new_xml_path = str(self.model_path.parent / "new_model.xml")
+        # Find the <worldbody> element to insert new obstacles
+        worldbody = root.find('worldbody')
+
+        # Set default RGBA colors (if not provided)
+        if obstacle_rgba is None:
+            obstacle_rgba = [[1, 0, 0, 1] for _ in range(len(obstacle_positions))]
+
+        # Loop through each obstacle to add
+        for i, (pos, size, rgba) in enumerate(zip(obstacle_positions, obstacle_sizes, obstacle_rgba)):
+            # Create a new body for the obstacle
+            obstacle_body = ET.Element('body', name=f'obstacle_{i}', pos=" ".join(map(str, pos)))
+
+            # Create the geometry for the obstacle (we'll use a cylinder)
+            geom = ET.SubElement(obstacle_body, 'geom', name=f'obstacle_geom_{i}', type="cylinder",
+                                size=" ".join(map(str, size)), rgba=" ".join(map(str, rgba)))
+
+            # Append the new obstacle to the <worldbody>
+            worldbody.append(obstacle_body)
+
+        # Save the modified XML to the new path
+        tree.write(new_xml_path)
+
+        print(f"Obstacles added and new XML saved to {new_xml_path}")
+
+        # Update the model with the new XML
+        self.model = mujoco.MjModel.from_xml_path(new_xml_path)
+        self.data = mujoco.MjData(self.model)
+
+        
     def reach_state(self, desired_state: np.ndarray, n_steps: int, viewer, video, renderer, frame_count, video_fps):
         """Returns the control action to reach the desired state at the given time."""
         assert desired_state.shape[0] == self.n_states
