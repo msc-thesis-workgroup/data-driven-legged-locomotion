@@ -49,3 +49,27 @@ def h1_walk_cost_trajectory(x, k):
     costs = (x[0] - r[0])**2 + (x[1] - r[1])**2
     costs = np.squeeze(costs)
     return costs
+
+class Cost:
+    def __init__(self, obstacles_positions, obstacles_sizes):
+        self.obstacles_positions = obstacles_positions
+        self.obstacles_sizes = obstacles_sizes
+        self.alpha = 400.0
+
+    def get_cost_function(self):
+        def cost(x, k):
+            r = np.array([10.0, 10.0])
+            z_torso = 1.06
+            costs = (x[:,0] - r[0])**2 + (x[:,1] - r[1])**2
+            costs = np.squeeze(costs)
+            costs += (x[:,2] - z_torso)**2
+
+            # obstacles are modeled as bivariate gaussian obstacles
+            for i in range(len(self.obstacles_positions)):
+                obs = self.obstacles_positions[i]
+                size = self.obstacles_sizes[i]
+                costs += self.alpha*np.exp(-((x[:,0] - obs[0])**2/(2*size[0]**2) + (x[:,1] - obs[1])**2/(2*size[1]**2)))
+
+            return costs
+
+        return cost
