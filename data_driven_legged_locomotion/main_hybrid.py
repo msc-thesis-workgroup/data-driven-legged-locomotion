@@ -9,7 +9,7 @@ import mujoco.viewer as viewer
 import time
 
 from data_driven_legged_locomotion.common import ServiceSet, GreedyMaxEntropyCrowdsouring
-from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
+from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, Cost
 from data_driven_legged_locomotion.utils import CsvFormatter
 
 from data_driven_legged_locomotion.agents.HybridTDMPC_service import HybridTDMPCService
@@ -31,7 +31,32 @@ logger.addHandler(fileHandler)
 env = H1WalkEnvironment()
 ss = env.ss
 model = env.model
-cost = h1_walk_cost
+
+# Adding obstacles
+obstacle_positions = [
+    [3, 3, 0],  # Position of the first obstacle
+    [6.0, 6.0, 0],  # Position of the second obstacle
+]
+
+obstacle_sizes = [
+    [1, 1, 1],  # Size of the first obstacle
+    [0.5, 0.5, 2],  # Size of the second obstacle
+]
+
+# Optionally, define custom RGBA colors (default is red)
+obstacle_rgba = [
+    [1, 0, 0, 1],  # Red for the first obstacle
+    [0, 1, 0, 1],  # Green for the second obstacle
+]
+
+env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
+
+cost_obj = Cost(obstacle_positions, obstacle_sizes)
+cost = cost_obj.get_cost_function()
+# cost = h1_walk_cost
+
+
+
 
 # Crowdsourcing
 services = ServiceSet(ss)
@@ -53,13 +78,13 @@ FRAME_SKIP = 1
 AGENT_HORIZON = 100
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
 services.addService(hybrid_service)
-# hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
-# #hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-# hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
-# services.addService(hybrid_service_2)
-# hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
-# hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-# services.addService(hybrid_service_3)
+hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+#hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
+services.addService(hybrid_service_2)
+hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+services.addService(hybrid_service_3)
 
 # Crowdsourcing
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
@@ -143,29 +168,28 @@ with env.launch_passive_viewer() as viewer:
 			#u = get_control(env)
 
 			# Sol 2
-			# u_traj = get_control(env)
-			# for u in u_traj:
-			# 	#log_row.append(list(u))
-			# 	env.step(u)
+			u_traj = get_control(env)
+			for u in u_traj:
+				#log_row.append(list(u))
+				env.step(u)
 
-			# 	# Pick up changes to the physics state, apply perturbations, update options from GUI.
-			# 	viewer.sync()
-			# 	# Render video
-			# 	if frame_count < env.time * video_fps:
-			# 		renderer.update_scene(env.data, camera="top")
-			# 		pixels = renderer.render()
-			# 		video.add_image(pixels)
-			# 		frame_count += 1
+				# Pick up changes to the physics state, apply perturbations, update options from GUI.
+				viewer.sync()
+				# Render video
+				if frame_count < env.time * video_fps:
+					renderer.update_scene(env.data, camera="top")
+					pixels = renderer.render()
+					video.add_image(pixels)
+					frame_count += 1
 					
 
-			# 	# Log the data
-			# 	#logger.log(logging.DEBUG, log_row)
+				# Log the data
+				#logger.log(logging.DEBUG, log_row)
 
 			# Sol 3
-
-			x_state = get_next_state(env)
-			frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
-			env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
+			# x_state = get_next_state(env)
+			# frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
+			# env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
 
 
 			# Rudimentary time keeping, will drift relative to wall clock.
