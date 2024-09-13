@@ -8,6 +8,8 @@ import mujoco
 import mujoco.viewer as viewer
 import time
 
+from pyquaternion import Quaternion
+
 from data_driven_legged_locomotion.common import ServiceSet, GreedyMaxEntropyCrowdsouring
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, Cost
 from data_driven_legged_locomotion.utils import CsvFormatter
@@ -30,27 +32,30 @@ logger.addHandler(fileHandler)
 # Environment
 env = H1WalkEnvironment()
 ss = env.ss
-model = env.model
 
 # Adding obstacles
 obstacle_positions = [
-    [3, 3, 0],  # Position of the first obstacle
-    [6.0, 6.0, 0],  # Position of the second obstacle
+    [4, 4, 0],  # Position of the first obstacle
+    [2.0, 2.0, 0],  # Position of the second obstacle
+	[6.0, 6.0, 0],  # Position of the second obstacle
+
 ]
 
 obstacle_sizes = [
-    [1, 1, 1],  # Size of the first obstacle
-    [0.5, 0.5, 2],  # Size of the second obstacle
+    [0.7, 0.7, 2],  # Size of the first obstacle
+    [0.7, 0.7, 4],  # Size of the first obstacle
+	[0.7, 0.7, 5],  # Size of the second obstacle
 ]
 
 # Optionally, define custom RGBA colors (default is red)
 obstacle_rgba = [
     [1, 0, 0, 1],  # Red for the first obstacle
     [0, 1, 0, 1],  # Green for the second obstacle
+	[0, 0, 1, 1],  # Blue for the second obstacle
 ]
 
-env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
-
+#env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
+model = env.model
 cost_obj = Cost(obstacle_positions, obstacle_sizes)
 cost = cost_obj.get_cost_function()
 # cost = h1_walk_cost
@@ -75,7 +80,7 @@ renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolu
 variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
-AGENT_HORIZON = 100
+AGENT_HORIZON = 500
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
 services.addService(hybrid_service)
 hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
