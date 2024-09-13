@@ -54,7 +54,7 @@ obstacle_rgba = [
 	[0, 0, 1, 1],  # Blue for the second obstacle
 ]
 
-#env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
+env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
 model = env.model
 cost_obj = Cost(obstacle_positions, obstacle_sizes)
 cost = cost_obj.get_cost_function()
