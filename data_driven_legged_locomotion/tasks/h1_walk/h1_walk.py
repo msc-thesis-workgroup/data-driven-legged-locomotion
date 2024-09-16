@@ -3,6 +3,8 @@ import numpy as np
 
 from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment
 
+from pyquaternion import Quaternion
+
 class H1WalkEnvironment(MujocoEnvironment):
     def __init__(self, n_samples = 1000):
         base_path = pathlib.Path(__file__).parent.parent.parent.parent
@@ -58,33 +60,58 @@ class Cost:
         self.beta = 10
 
     def get_cost_function(self):
+        # def cost(x, k):
+        #     r = np.array([10.0, 10.0])
+        #     z_torso = 1.06
+        #     costs = 20*(x[:,0] - r[0])**2 + (x[:,1] - r[1])**2 -10/(np.sqrt(( ((x[:,0]-r[0])/1000)**2 + ((x[:,1] - r[1])/1000)**2 +0.1)))
+        #     costs = np.squeeze(costs)
+        #     costs += self.alpha*(x[:,2] - z_torso)**2
+
+        #     # obstacles are modeled as bivariate gaussian obstacles
+        #     for i in range(len(self.obstacles_positions)):
+        #         obs = self.obstacles_positions[i]
+        #         size = self.beta*self.obstacles_sizes[i]
+        #         costs += self.alpha*np.exp(-((x[:,0] - obs[0])**2/(2*size[0]**2) + (x[:,1] - obs[1])**2/(2*size[1]**2)))
+
+
+        #     # Add wall costs. The walls are modeled as bivariate gaussian obstacles from the corners of the room: (-1,-1), (-1,11), (11,-1), (11,11).
+        #     x_s = np.array([-1, 11])
+        #     y_s = np.array([-1, 11])
+        #     wall_size = 1
+        #     wall_alpha = self.alpha
+        #     wall_cost = 0
+        #     for x_i in x_s:
+        #         wall_cost += wall_alpha*np.exp(-((x[:,0] - x_i)**2/(2*wall_size**2)))
+        #     for y_i in y_s:
+        #         wall_cost += wall_alpha*np.exp(-((x[:,1] - y_i)**2/(2*wall_size**2)))
+        #     costs += wall_cost
+            
+        #     return costs
+
+
         def cost(x, k):
             r = np.array([10.0, 10.0])
-            z_torso = 1.06
-            costs = 20*(x[:,0] - r[0])**2 + (x[:,1] - r[1])**2 -10/(np.sqrt(( ((x[:,0]-r[0])/1000)**2 + ((x[:,1] - r[1])/1000)**2 +0.1)))
-            costs = np.squeeze(costs)
-            costs += self.alpha*(x[:,2] - z_torso)**2
+            z_torso = 0.96
+            costs = 100*np.sqrt((x[0] - r[0])**2 + (x[1] - r[1])**2)
+            if x[2] < 0.9:
+                costs = float('inf')
+                print("[WARNING] Torso too low. This policy could make the robot fall.")
+                return costs
 
             # obstacles are modeled as bivariate gaussian obstacles
             for i in range(len(self.obstacles_positions)):
                 obs = self.obstacles_positions[i]
                 size = self.beta*self.obstacles_sizes[i]
-                costs += self.alpha*np.exp(-((x[:,0] - obs[0])**2/(2*size[0]**2) + (x[:,1] - obs[1])**2/(2*size[1]**2)))
+                costs += self.alpha*np.exp(-((x[0] - obs[0])**2/(2*size[0]**2) + (x[1] - obs[1])**2/(2*size[1]**2)))
 
+            # q1 = Quaternion(x[3:7])
+            # q2 = Quaternion(np.array([1.0, 0.0, 0.0, 0.0]))
+            # quat_cost = 50*Quaternion.absolute_distance(q1, q2)
+            # print("[DEBUG] quat_cost: ", quat_cost,"other cost: ", costs)
+            # costs += quat_cost
 
-            # Add wall costs. The walls are modeled as bivariate gaussian obstacles from the corners of the room: (-1,-1), (-1,11), (11,-1), (11,11).
-            x_s = np.array([-1, 11])
-            y_s = np.array([-1, 11])
-            wall_size = 1
-            wall_alpha = self.alpha
-            wall_cost = 0
-            for x_i in x_s:
-                wall_cost += wall_alpha*np.exp(-((x[:,0] - x_i)**2/(2*wall_size**2)))
-            for y_i in y_s:
-                wall_cost += wall_alpha*np.exp(-((x[:,1] - y_i)**2/(2*wall_size**2)))
-            costs += wall_cost
-            
             return costs
+
 
         return cost
 
