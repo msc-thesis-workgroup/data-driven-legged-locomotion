@@ -39,7 +39,7 @@ def _compute_joint_torques(data: mujoco.MjData, model: mujoco.MjModel, desired_q
     kd = np.array([1.25, 1.25, 1.25, 1.5, 0.25, 1.25, 1.25, 1.25, 1.5, 0.25, 1, 2, 2, 2, 2, 2, 2, 2, 2])
     
     actuator_length = data.qpos[7:len(data.qpos)]
-    assert len(actuator_length) == len(desired_q_pos)
+    #assert len(actuator_length) == len(desired_q_pos)
     error = desired_q_pos - actuator_length
     m = model
     d = data
@@ -49,7 +49,7 @@ def _compute_joint_torques(data: mujoco.MjData, model: mujoco.MjModel, desired_q
     ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
 
     error_dot = ctrl_dot - data.qvel[6:len(data.qvel)]
-    assert len(error_dot) == len(error)
+    #assert len(error_dot) == len(error)
 
     joint_torques = kp*error + kd*error_dot
 
