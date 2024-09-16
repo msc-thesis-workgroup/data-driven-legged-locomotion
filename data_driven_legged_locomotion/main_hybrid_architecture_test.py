@@ -101,8 +101,16 @@ log_header = log_header + ["Service_Index", "Control"]
 logger.log(logging.INFO, log_header)
 log_row = []
 
-def get_control(env):
 
+# 
+first_time = True
+old_agent_index = None
+service_index = None
+
+def get_control(env):
+	global first_time
+	global old_agent_index
+	global service_index
 	# JUST FOR ONE TEST
 	# env.data.qvel[3:6] = env.data.qvel[3:6] * 0.33
 
@@ -115,17 +123,16 @@ def get_control(env):
 		service.set_data(env.data)
 
 	states = []
-	# Sol CROWDSOURCING
-	#crowdsourcing.initialize(x, time=env.time)
+	crowdsourcing.initialize(x, time=env.time)
 
 	
 	# Sol CROWDSOURCING
-	# for i in range(len(services.services)):
-	# 	next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
-	# 	#log_row.append(list(next_state))
+	for i in range(len(services.services)):
+		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
+		#log_row.append(list(next_state))
  
-	# service_list, behavior = crowdsourcing.run()
-	# service_index = service_list[0]
+	service_list, behavior = crowdsourcing.run()
+	service_index = service_list[0]
 	
 	# Sol TESTING ONLY
 	costs = []
@@ -146,8 +153,20 @@ def get_control(env):
 	print(f"[DEBUG] Service index: {service_index}")
 	#log_row.append(service_index)
 
-	#u = services.services[service_index].last_u
-	#return u
+	
+
+	# if not first_time and old_agent_index != service_index:
+	# 	agent = services.services[old_agent_index].get_agent_copy()
+	# 	services.services[service_index].set_agent_copy(agent)
+
+	# 	#env.data.qvel[3:6] = env.data.qvel[3:6] * 0.5
+	# 	env.data.qvel[0:3] = env.data.qvel[0:3] * 0.33
+	# 	services.services[service_index].set_data(env.data)
+
+	# if first_time:
+	# 	first_time = False
+
+	# old_agent_index = service_index
 
 	# agent = services.services[service_index].get_agent_copy()
 	# print("[DEBUG] Agent id: ", id(agent)," Service id: ", id(services.services[service_index]))
@@ -155,12 +174,65 @@ def get_control(env):
 	# 	if index != service_index:
 	# 		service.set_agent_copy(agent)
 
+	u_traj = services.services[service_index].control_trajectory
+	return u_traj
+
+
+
+def get_control_without_crowdsourcing(env):
+	global first_time
+	global old_agent_index
+	global service_index
+	# JUST FOR ONE TEST
+	# env.data.qvel[3:6] = env.data.qvel[3:6] * 0.33
+
+	x = env.get_state()
+	#log_row.append(list(x))
+
+	# Update the data for the services
+	for index,service in enumerate(services.services):
+		#print("index",index ,"id: ", id(service))
+		service.set_data(env.data)
+
+	# Sol TESTING ONLY
+	costs = []
+	for index,service in enumerate(services.services):
+
+		state = x.copy()
+		if index == 0:
+			state[0] += 0.003
+		elif index == 1:
+			state[0] += 0.003/np.sqrt(2)
+			state[1] += 0.003/np.sqrt(2)
+		elif index == 2:
+			state[1] += 0.003
+		costs.append(cost(state, 0))
+				
+	service_index = np.argmin(costs)
+	
+	print(f"[DEBUG] Service index: {service_index}")
+	#log_row.append(service_index)
+
+
+	# Cheating block
+	if not first_time and old_agent_index != service_index:
+		agent = services.services[old_agent_index].get_agent_copy()
+		services.services[service_index].set_agent_copy(agent)
+
+		#env.data.qvel[3:6] = env.data.qvel[3:6] * 0.5
+		env.data.qvel[0:3] = env.data.qvel[0:3] * 0.33
+		services.services[service_index].set_data(env.data)
+
+	if first_time:
+		first_time = False
+
+	old_agent_index = service_index
 
 	winner_service = services.services[service_index]
 	next_state = winner_service._get_next_state(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
 	
-	u_traj = winner_service.control_trajectory
-	return u_traj
+	u = winner_service.control_trajectory[-1] # the trajecctory contains only one element
+	return u
 
 def get_next_state(env):
 	x = env.get_state()
@@ -203,34 +275,53 @@ with env.launch_passive_viewer() as viewer:
 			# Step the simulation forward.
 			
 			# Sol 1
-			#u = get_control(env)
+			temp = old_agent_index
+			u = get_control_without_crowdsourcing(env)
+			#log_row.append(list(u))
+			env.step(u)
+
+			# Pick up changes to the physics state, apply perturbations, update options from GUI.
+			viewer.sync()
+			# Render video
+			if frame_count < env.time * video_fps:
+				renderer.update_scene(env.data, camera="top")
+				pixels = renderer.render()
+				video.add_image(pixels)
+				frame_count += 1
+					
+			# if temp != service_index:
+			# 	print("[DEBUG] Service changed")
+			# 	for i in range(6):
+			# 		if i > 3:
+			# 			temp_agent = services.services[old_agent_index]
+			# 			print("Interpolating with old agent")
+			# 		else:
+			# 			temp_agent = services.services[service_index]
+			# 			print("Interpolating with new agent")
+			# 		x = env.get_state()
+			# 		temp_agent.set_data(env.data)
+			# 		next_state = temp_agent._get_next_state(x, t=env.time)
+			# 		u_traj = temp_agent.control_trajectory
+			# 		for index,u in enumerate(u_traj):
+			# 			env.step(u)
+			# 			viewer.sync()
+			# 			if frame_count < env.time * video_fps:
+			# 				renderer.update_scene(env.data, camera="top")
+			# 				pixels = renderer.render()
+			# 				video.add_image(pixels)
+			# 				frame_count += 1
+
+
+			# Log the data
+			#logger.log(logging.DEBUG, log_row)
 
 			# Sol 2
-			u_traj = get_control(env)
-			for index,u in enumerate(u_traj):
-				#log_row.append(list(u))
-				env.step(u)
-
-				# Pick up changes to the physics state, apply perturbations, update options from GUI.
-				viewer.sync()
-				# Render video
-				if frame_count < env.time * video_fps:
-					renderer.update_scene(env.data, camera="top")
-					pixels = renderer.render()
-					video.add_image(pixels)
-					frame_count += 1
-					
-
-				# Log the data
-				#logger.log(logging.DEBUG, log_row)
-
-			# Sol 3
 			# x_state = get_next_state(env)
 			# frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
 			# env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
 
 
 			# Rudimentary time keeping, will drift relative to wall clock.
-			time_until_next_step = env.timestep - (time.time() - step_start)
-			if time_until_next_step > 0:
-				time.sleep(time_until_next_step)
+			# time_until_next_step = env.timestep - (time.time() - step_start)
+			# if time_until_next_step > 0:
+			# 	time.sleep(time_until_next_step)
