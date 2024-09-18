@@ -9,6 +9,7 @@ from data_driven_legged_locomotion.agents.tdmpc.tdmpc2 import TDMPC2
 
 import torch
 from pyquaternion import Quaternion
+from scipy.spatial.transform import Rotation as R
 import copy
 import mujoco
 
@@ -57,7 +58,7 @@ def _compute_joint_torques(data: mujoco.MjData, model: mujoco.MjModel, desired_q
 
 class HybridTDMPCService(MujocoService):
 
-    def __init__(self, ss: StateSpace, model,variances: float = None, agent_horizon: int = 1, frame_skip: int = 5):
+    def __init__(self, ss: StateSpace, model,variances: float = None, agent_horizon: int = 1, frame_skip: int = 5, delta_step: float = 0.003):
         super().__init__(ss, model, variances)
         
         base_path = pathlib.Path(__file__).parent
@@ -93,6 +94,7 @@ class HybridTDMPCService(MujocoService):
 
         self.t = 0
         self.agent = None
+        self.delta_step = delta_step
         self.target_reference = DEFAULT_TARGET_DIRECTION
         self.transformation_quat = None
         self.policy_reference = None
@@ -133,34 +135,53 @@ class HybridTDMPCService(MujocoService):
 
     def _policy(self, x: np.array, t: float = 0.0) -> np.array:
         """Returns the action given the state."""
-        
         raise NotImplementedError("The policy method must be implemented.")
-        # TD-MPC is trained to walk in the direction of the target reference, however, if the position of the robot is far from the target reference, the agent will produce high torques to move the robot to the target reference. This is not desired because the robot will become unstable. To avoid this, we set the position of the robot to (0,0) so the agent can produce the correct torques to move the robot in the desired direction.
-        x = copy.deepcopy(x)
+    
+
+    # Override
+    def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the next state given the state and time."""
+        
+        # Make a copy of the state to avoid modifying the original state
+        state = copy.deepcopy(state)
+
+        transformation_rot = R.from_quat(self.transformation_quat.inverse.q, scalar_first=True) # Inverse of the transformation quaternion. Transformation quaternion is from the reference orientation to the target orientation, that corresponds to negative rotation.
+        angle = transformation_rot.as_euler('zyx')[0]
+        angle = angle % (2*np.pi) # Normalize the angle to the range [0, 2*pi]
+
+        # Update the position of the robot according to the direction of the movement
+        state[0] += self.delta_step*np.cos(angle)
+        state[1] += self.delta_step*np.sin(angle)
+
+        #print("[DEBUG] angle", angle,"increment (dx,dy):", self.delta_step*np.cos(angle), self.delta_step*np.sin(angle))
+        return state 
+    
+    def _get_control(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the control input given the state and time."""
+
+        x = copy.deepcopy(state)
         x[0] = 0.0
         x[1] = 0.0
 
-        # Hybrid TD-MPC: The agent sees only a subset of x.
         x = self._generalize_walk_direction(x).numpy()
-        
-        x_tdmpc = self._convert_stato_to_TDMPC_state(x)
+            
+        x_tdmpc = self._convert_state_to_TDMPC_state(x)
         x_tdmpc = torch.tensor(x_tdmpc, dtype=torch.float32)
         action = self.agent.act(x_tdmpc, t0=self.t == 0, task=None)
         self.t += 1
         action = action.detach().numpy()
         action = np.concatenate([action, np.zeros(8)])
+
         desired_joint_pos = unnorm_action(action)
+        # Make sure the last 8 elements are zeros
         desired_joint_pos[-8:] = np.zeros(8)
-        
-        u = self._get_joint_torques(desired_joint_pos)
-
+        # Compute the joint torques from the desired joint positions
+        u = _compute_joint_torques(data=self.data, model=self.model, desired_q_pos=desired_joint_pos)
         return u
-    
 
-    # Override
-    def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
-        """Returns the next state given the current state and the current time. This method must set _last_u
-        as the control action used to reach the next state."""
+        
+    def _get_control_trajectory(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the control trajectory given the state and time by applying a roll-out strategy."""
         
         x = copy.deepcopy(state)
         #data_copy = copy.deepcopy(self.data)
@@ -176,7 +197,7 @@ class HybridTDMPCService(MujocoService):
             # Hybrid TD-MPC: The agent sees only a subset of x.
             x = self._generalize_walk_direction(x).numpy()
             
-            x_tdmpc = self._convert_stato_to_TDMPC_state(x)
+            x_tdmpc = self._convert_state_to_TDMPC_state(x)
             x_tdmpc = torch.tensor(x_tdmpc, dtype=torch.float32)
             action = agent_copy.act(x_tdmpc, t0=self.t == 0, task=None)
             self.t += 1
@@ -201,9 +222,9 @@ class HybridTDMPCService(MujocoService):
         self.data.qvel = copy.deepcopy(state[self.model.nq:])
         self.data.time = t
         self.data.ctrl = u.copy()
-        return next_state
+        return self.control_trajectory
 
-    def _convert_stato_to_TDMPC_state(self, x: np.array) -> np.array:
+    def _convert_state_to_TDMPC_state(self, x: np.array) -> np.array:
         x_tdmpc = np.concatenate([x[0:18], x[26:43]]) # x_tdmpc = [x[0:18], x[26:43]] [x[0:26-8], x[26:51-8]]
         #print("x_tdmpc: ", x_tdmpc, "len(x_tdmpc): ", len(x_tdmpc))
         return x_tdmpc

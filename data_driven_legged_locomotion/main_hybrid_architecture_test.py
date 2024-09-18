@@ -35,23 +35,29 @@ ss = env.ss
 
 # Adding obstacles
 obstacle_positions = [
-    [4, 4, 0],  # Position of the first obstacle
-    [2.0, 2.0, 0],  # Position of the second obstacle
+    #[2.0, 2.0, 0],  # Position of the second obstacle
+	[3.0, 3.0, 0],  # Position of the second obstacle
+    [4.0, 4.0, 0],  # Position of the first obstacle
+	[5.0, 5.0, 0],  # Position of the second obstacle
 	[6.0, 6.0, 0],  # Position of the second obstacle
 
 ]
 
 obstacle_sizes = [
-    [0.7, 0.7, 2],  # Size of the first obstacle
+    #[0.7, 0.7, 2],  # Size of the first obstacle
+	[0.7, 0.7, 3],  # Size of the first obstacle
     [0.7, 0.7, 4],  # Size of the first obstacle
-	[0.7, 0.7, 5],  # Size of the second obstacle
+	[0.7, 0.7, 5],  # Size of the first obstacle
+	[0.7, 0.7, 6],  # Size of the second obstacle
 ]
 
 # Optionally, define custom RGBA colors (default is red)
 obstacle_rgba = [
-    [1, 0, 0, 1],  # Red for the first obstacle
+    #[1, 0, 0, 1],  # Red for the first obstacle
     [0, 1, 0, 1],  # Green for the second obstacle
 	[0, 0, 1, 1],  # Blue for the second obstacle
+	[1, 1, 0, 1],  # Yellow for the second obstacle
+	[1, 0, 1, 1],  # Magenta for the second obstacle
 ]
 
 env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
@@ -81,18 +87,20 @@ variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
 AGENT_HORIZON = 1
-hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+N_SAMPLES = 100
+DELTA_STEP = 0.003
+hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 services.addService(hybrid_service)
-hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 #hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
 hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
 services.addService(hybrid_service_2)
-hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP)
+hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
 services.addService(hybrid_service_3)
 
 # Crowdsourcing
-crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
+crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost, n_samples=N_SAMPLES)
 
 # Logging header
 log_header = ["Time", "State"]
@@ -102,20 +110,14 @@ logger.log(logging.INFO, log_header)
 log_row = []
 
 
-# 
 first_time = True
 old_agent_index = None
 service_index = None
 
 def get_control(env):
-	global first_time
-	global old_agent_index
-	global service_index
-	# JUST FOR ONE TEST
-	# env.data.qvel[3:6] = env.data.qvel[3:6] * 0.33
 
-	x = env.get_state()
-	#log_row.append(list(x))
+	x = env.get_state().copy()
+	log_row.append(list(x))
 
 	# Update the data for the services
 	for index,service in enumerate(services.services):
@@ -125,57 +127,20 @@ def get_control(env):
 	states = []
 	crowdsourcing.initialize(x, time=env.time)
 
-	
-	# Sol CROWDSOURCING
 	for i in range(len(services.services)):
 		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
-		#log_row.append(list(next_state))
+		#print("service: ", i,"next_state: ", next_state[0:3])
+		log_row.append(list(next_state))
  
 	service_list, behavior = crowdsourcing.run()
 	service_index = service_list[0]
 	
-	# Sol TESTING ONLY
-	costs = []
-	for index,service in enumerate(services.services):
-
-		state = x.copy()
-		if index == 0:
-			state[0] += 0.003
-		elif index == 1:
-			state[0] += 0.003/np.sqrt(2)
-			state[1] += 0.003/np.sqrt(2)
-		elif index == 2:
-			state[1] += 0.003
-		costs.append(cost(state, 0))
-				
-	service_index = np.argmin(costs)
 	
-	print(f"[DEBUG] Service index: {service_index}")
-	#log_row.append(service_index)
-
+	print(f"[DEBUG] Chosen Service index: {service_index}")
+	log_row.append(service_index)
 	
-
-	# if not first_time and old_agent_index != service_index:
-	# 	agent = services.services[old_agent_index].get_agent_copy()
-	# 	services.services[service_index].set_agent_copy(agent)
-
-	# 	#env.data.qvel[3:6] = env.data.qvel[3:6] * 0.5
-	# 	env.data.qvel[0:3] = env.data.qvel[0:3] * 0.33
-	# 	services.services[service_index].set_data(env.data)
-
-	# if first_time:
-	# 	first_time = False
-
-	# old_agent_index = service_index
-
-	# agent = services.services[service_index].get_agent_copy()
-	# print("[DEBUG] Agent id: ", id(agent)," Service id: ", id(services.services[service_index]))
-	# for index,service in enumerate(services.services):
-	# 	if index != service_index:
-	# 		service.set_agent_copy(agent)
-
-	u_traj = services.services[service_index].control_trajectory
-	return u_traj
+	u = services.services[service_index]._get_control(x, t=env.time)
+	return u
 
 
 
@@ -229,10 +194,9 @@ def get_control_without_crowdsourcing(env):
 	old_agent_index = service_index
 
 	winner_service = services.services[service_index]
-	next_state = winner_service._get_next_state(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
+	u_traj = winner_service._get_control_trajectory(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
 	
-	u = winner_service.control_trajectory[-1] # the trajecctory contains only one element
-	return u
+	return u_traj[-1] # the trajectory is made by only one element. TODO REFACTOR THIS TO BE MORE CLEAR
 
 def get_next_state(env):
 	x = env.get_state()
@@ -268,16 +232,16 @@ with env.launch_passive_viewer() as viewer:
 		# Close the viewer automatically after 30 wall-seconds.
 		start = time.time()
 		while viewer.is_running():
-			#log_row = []
-			#log_row.append(env.time)
+			log_row = []
+			log_row.append(env.time)
 			step_start = time.time()
 
 			# Step the simulation forward.
 			
 			# Sol 1
 			temp = old_agent_index
-			u = get_control_without_crowdsourcing(env)
-			#log_row.append(list(u))
+			u = get_control(env)
+			log_row.append(list(u))
 			env.step(u)
 
 			# Pick up changes to the physics state, apply perturbations, update options from GUI.
@@ -289,39 +253,10 @@ with env.launch_passive_viewer() as viewer:
 				video.add_image(pixels)
 				frame_count += 1
 					
-			# if temp != service_index:
-			# 	print("[DEBUG] Service changed")
-			# 	for i in range(6):
-			# 		if i > 3:
-			# 			temp_agent = services.services[old_agent_index]
-			# 			print("Interpolating with old agent")
-			# 		else:
-			# 			temp_agent = services.services[service_index]
-			# 			print("Interpolating with new agent")
-			# 		x = env.get_state()
-			# 		temp_agent.set_data(env.data)
-			# 		next_state = temp_agent._get_next_state(x, t=env.time)
-			# 		u_traj = temp_agent.control_trajectory
-			# 		for index,u in enumerate(u_traj):
-			# 			env.step(u)
-			# 			viewer.sync()
-			# 			if frame_count < env.time * video_fps:
-			# 				renderer.update_scene(env.data, camera="top")
-			# 				pixels = renderer.render()
-			# 				video.add_image(pixels)
-			# 				frame_count += 1
-
-
 			# Log the data
-			#logger.log(logging.DEBUG, log_row)
+			logger.log(logging.DEBUG, log_row)
 
 			# Sol 2
 			# x_state = get_next_state(env)
 			# frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
 			# env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
-
-
-			# Rudimentary time keeping, will drift relative to wall clock.
-			# time_until_next_step = env.timestep - (time.time() - step_start)
-			# if time_until_next_step > 0:
-			# 	time.sleep(time_until_next_step)

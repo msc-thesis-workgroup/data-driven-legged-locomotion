@@ -91,10 +91,11 @@ class Cost:
 
         def cost(x, k):
             r = np.array([10.0, 10.0])
-            z_torso = 0.96
-            costs = 100*np.sqrt((x[0] - r[0])**2 + (x[1] - r[1])**2)
-            if x[2] < 0.9:
-                costs = float('inf')
+            costs = 100*np.sqrt((x[:,0] - r[0])**2 + (x[:,1] - r[1])**2)
+
+            z_mean = np.mean(x[:,2])
+            if z_mean < 0.88:
+                costs = np.ones(x.shape[0])*1000000
                 print("[WARNING] Torso too low. This policy could make the robot fall.")
                 return costs
 
@@ -102,7 +103,7 @@ class Cost:
             for i in range(len(self.obstacles_positions)):
                 obs = self.obstacles_positions[i]
                 size = self.beta*self.obstacles_sizes[i]
-                costs += self.alpha*np.exp(-((x[0] - obs[0])**2/(2*size[0]**2) + (x[1] - obs[1])**2/(2*size[1]**2)))
+                costs += self.alpha*np.exp(-((x[:,0] - obs[0])**2/(2*size[0]**2) + (x[:,1] - obs[1])**2/(2*size[1]**2)))
 
             # q1 = Quaternion(x[3:7])
             # q2 = Quaternion(np.array([1.0, 0.0, 0.0, 0.0]))
@@ -110,6 +111,7 @@ class Cost:
             # print("[DEBUG] quat_cost: ", quat_cost,"other cost: ", costs)
             # costs += quat_cost
 
+            # TODO: Add a cost to improve the robot to reach the goal when it is close to it
             return costs
 
 
