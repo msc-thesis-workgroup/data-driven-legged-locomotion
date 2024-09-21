@@ -38,13 +38,14 @@ class CrowdsourcingBase(ABC):
         problem.solve()
         return alpha.value
     
-    def _state_iteration(self, x_index: tuple, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+    def _state_iteration(self, state: np.ndarray, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+        x_index = self.ss.toIndex(state)
         x_index_flat = np.ravel_multi_index(x_index, self.ss.dims)
         #r_hat = - np.dot(self._a[k+1, :, x_index_flat], self._alpha[k+1, :])
         #self._overline_r[k, x_index_flat] = r_hat - self.cost(x,k)
         for s in range(self.S):
             pi_cond = behaviors[s]
-            pi = pi_cond.getNextStatePF(x_index)
+            pi = pi_cond.getNextStatePF(state)
             exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
             self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
         self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
@@ -92,10 +93,11 @@ class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
         self._initial_state = initial_state
         self.initialized = True
         
-    def _state_iteration(self, x_index: tuple, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+    def _state_iteration(self, state: np.ndarray, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
+        x_index = self.ss.toIndex(state)
         for s in range(self.S):
             pi_cond = behaviors[s]
-            pi = pi_cond.getNextStatePF(x_index)
+            pi = pi_cond.getNextStatePF(state)
             exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
             self._a[k, s] = self._get_DKL(pi) + exp_r_overline
         self._alpha[k,:] = self._solveOptimization(self._a[k, :])

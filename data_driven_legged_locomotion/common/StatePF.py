@@ -38,7 +38,6 @@ class StateCondPF(ABC): #pi(x_k|x_k-1)
     """An StateCondPF is a conditional PF that describes the behavior of a system at a given time."""
     def __init__(self, ss: StateSpace):
         self.ss = ss
-        self.PFs = {}
     
     @abstractmethod
     def getNextStatePF(self, state: np.ndarray) -> StatePF:
@@ -129,6 +128,18 @@ class NormalStatePF(StatePF):
     
     def getEntropy(self) -> float:
         return 0.5 * np.log((2 * np.pi * np.e)**self.ss.n_states * self.det_cov)
+    
+class NormalStateCondPF(StateCondPF):
+    """A StateCondPF that represents a normal posterior distribution over the state space."""
+    def __init__(self, ss: StateSpace):
+        super().__init__(ss)
+        
+    def get_mean_cov(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        raise NotImplementedError("Method not implemented.")
+        
+    def getNextStatePF(self, state: np.ndarray) -> StatePF:
+        mean, cov = self.get_mean_cov(state)
+        return NormalStatePF(self.ss, mean, cov)
     
 class FakeStateCondPF(StateCondPF):
     def __init__(self, ss: StateSpace, pf: StatePF):
