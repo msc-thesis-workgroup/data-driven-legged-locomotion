@@ -6,6 +6,7 @@ import time
 from data_driven_legged_locomotion.common import MujocoService, StateSpace, Service
 
 class MujocoMPCService(MujocoService):
+    """A serve that uses a Mujoco MPC agent to generate behaviors."""
     def __init__(self, ss: StateSpace, model, variances: float = None, direction: np.ndarray = np.array([1.0, 0.0]), policy_sampling_time: float = 0.02, env = None):
         # We disable zero-order hold as we want the agent to interpolate the control action between the policy sampling time
         super().__init__(ss, model, variances, enable_zoh=False, policy_sampling_time=policy_sampling_time)
@@ -71,6 +72,8 @@ class MujocoMPCService(MujocoService):
         return u
 
 class MujocoMPCServiceV2(MujocoMPCService):
+    """This class is a variant of MujocoMPCService that uses the last state of the best trajectory as the next state for
+    better distringuishing the services in the crowdsourcing algorithm."""
     def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
         self.data.qpos = state[0:self.model.nq]
         self.data.qvel = state[self.model.nq:]
