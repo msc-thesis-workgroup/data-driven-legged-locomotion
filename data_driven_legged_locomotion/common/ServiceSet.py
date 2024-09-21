@@ -42,6 +42,7 @@ class Service(ABC):
         return self._generateBehavior(state, N, t)
 
 class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
+    """A set of behaviors that provide a set of state conditional probability distributions to the crowdsourcing algorithm."""
     def __init__(self, ss: StateSpace, N: int):
         self.ss = ss
         self.behaviors: list[Behavior] = []
@@ -76,7 +77,7 @@ class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
         return behavior
 
 class ServiceSet:
-    """Abstract class for a set of services."""
+    """A set of services that provide a set of behaviors to the crowdsourcing algorithm."""
     def __init__(self, ss: StateSpace):
         self.ss = ss
         self.services: list[Service] = []
@@ -106,7 +107,9 @@ class SingleBehavior(Behavior):
         self.time_window.append(behavior)
         
 class MujocoService(Service):
-    """A service that exploits a deterministic policy in a Mujoco environment to generate behaviors."""
+    """A service that exploits a deterministic policy in a Mujoco environment to generate behaviors.
+       The policy is rolled out in the environment to generate the next state, then a PF is created
+       adding Gaussian noise to the next state."""
     def __init__(self, ss: StateSpace, model, variances: float = None, policy_sampling_time: float = 0.02, enable_zoh: bool = True):
         super().__init__(ss)
         if variances is None:
@@ -179,3 +182,18 @@ class MujocoService(Service):
         pf = NormalStatePF(self.ss, x_next, np.diag(self.variances))
         cond_pf = FakeStateCondPF(self.ss, pf)
         return SingleBehavior(self.ss, cond_pf)
+    
+class OfflineReaderService(Service):
+    """A service that reads a behavior from a file."""
+    def __init__(self, ss: StateSpace, file_path: str):
+        super().__init__(ss)
+        self.file_path = file_path
+        self.behavior = self._readBehavior(file_path)
+    
+    def _readBehavior(self, file_path: str) -> Behavior:
+        """Reads a behavior from a file."""
+        raise NotImplementedError("OfflineReaderService._readBehavior must be implemented.")
+    
+    def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
+        """Generates a behavior for the given state."""
+        return self.behavior
