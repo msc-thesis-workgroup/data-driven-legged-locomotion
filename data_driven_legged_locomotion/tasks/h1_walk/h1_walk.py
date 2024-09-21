@@ -1,7 +1,7 @@
 import pathlib
 import numpy as np
 
-from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment
+from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment, DiscreteStateSpace
 
 class H1WalkEnvironment(MujocoEnvironment):
     def __init__(self, n_samples = 1000):
@@ -30,7 +30,7 @@ class H1WalkEnvironment(MujocoEnvironment):
         deltas_q = (upper_q_bounds - lower_q_bounds) / n_samples
         deltas_dq = (upper_dq_bounds - lower_dq_bounds) / n_samples
         deltas = np.concatenate([deltas_q, deltas_dq])
-        ss = StateSpace(26+25,
+        ss = DiscreteStateSpace(26+25,
                         np.array(list(zip(lower_bounds, upper_bounds))),
                         deltas)
         super().__init__(ss, model_path)
