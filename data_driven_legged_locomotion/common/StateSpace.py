@@ -1,15 +1,27 @@
 import numpy as np
 
 class StateSpace:
-    """StateSpace provides a representation for the (discretized) state space over which PFs are defined"""
+    """StateSpace represents a generic continuous state space over which PFs are defined"""
+    def __init__(self, n_states: int, bounds: np.array = None):
+        self.n_states = n_states
+        if bounds is None:
+            bounds = np.repeat(np.array([[-np.inf, np.inf]]), n_states, axis=0)
+        elif len(bounds) != n_states:
+            raise ValueError("Dimension vector must have the same size of the ranges vector")
+        for i in range(n_states):
+            if bounds[i,0] > bounds[i,1]:
+                raise ValueError(f"Bounds {bounds[i]} are invalid.")
+        self.bounds = bounds
+
+class DiscreteStateSpace(StateSpace):
+    """DiscreteStateSpace provides a representation for a discrete state space over which PFs are defined"""
 
     def __init__(self, n_states: int, bounds: np.array, max_deltas = list[int]):
         """Initializes the state space with the given number of states and bounds.
         max_deltas is a list of the maximum cell size in each dimension."""
-        if(len(bounds) != n_states):
-            raise("Dimension vector must have the same size of the ranges vector")
-        self.n_states = n_states
-        self.bounds = bounds
+        if bounds is None:
+            raise ValueError("Bounds must be defined for a discrete state space.")
+        super().__init__(n_states, bounds)
         self._buildStateSpace(max_deltas)
 
     def __iter__(self):
@@ -68,7 +80,7 @@ class StateSpace:
 if __name__ == "__main__":
     bounds = np.array([[-1.0,1.0],[0.0,1.0]])
     deltas = [0.1,0.5]
-    ss = StateSpace(2,bounds,deltas)
+    ss = DiscreteStateSpace(2,bounds,deltas)
     for i, state in ss:
         print(i, state)
     i = ss.toIndex(np.array([-1.0,0.25]))

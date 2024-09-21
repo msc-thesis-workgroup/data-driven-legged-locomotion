@@ -1,13 +1,13 @@
 from pathlib import Path
 import numpy as np
 
-from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment
+from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment, DiscreteStateSpace
 from data_driven_legged_locomotion.agents.pendulum import SwingUpService
 
 class PendulumEnvironment(MujocoEnvironment):
     def __init__(self):
         model_path = Path(__file__).parent / 'simple_pendulum.xml'
-        ss = StateSpace(2, np.array([[-2*np.pi, 2*np.pi], [-10, 10]]), [np.pi/100, 20/2000])
+        ss = DiscreteStateSpace(2, np.array([[-2*np.pi, 2*np.pi], [-10, 10]]), [np.pi/100, 20/2000])
         super().__init__(ss, model_path)
 
 # A2 = [[0,1],[0,0]]

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-from .StateSpace import StateSpace
+from .StateSpace import StateSpace, DiscreteStateSpace
 
 class StatePF(ABC): #pi(x_k)
     """A StatePF is a probability distribution over the state space."""
@@ -131,7 +131,7 @@ class FakeStateCondPF(StateCondPF):
 if __name__ == "__main__":
     bounds = np.array([[-1.0,1.0],[0.0,1.0]])
     deltas = [0.1,0.5]
-    ss = StateSpace(2,bounds,deltas)
+    ss = DiscreteStateSpace(2,bounds,deltas)
     data = np.random.rand(*ss.dims)
     data = data / np.sum(data)
     hist_pf = HistogramStatePF(ss, data)
