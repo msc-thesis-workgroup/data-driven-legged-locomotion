@@ -7,6 +7,7 @@ from .StatePF import StatePF, StateCondPF
 from .StateSpace import StateSpace
 
 class CrowdsourcingBase(ABC):
+    """If N==1 the state space can be continuous, otherwise it must be discrete."""
     def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
         self.ss = ss
         self.services = services
@@ -69,11 +70,11 @@ class CrowdsourcingBase(ABC):
             behaviors = self._behaviors.getAtTime(k)
             # When we are at the end of the recursion, we don't need to evaluate the optimal policy from any state but the initial state
             if k == 0:
-                x, x_index = self._initial_state, self.ss.toIndex(self._initial_state)
-                self._state_iteration(x_index, k, behaviors, eval_r_overline)
+                x = self._initial_state
+                self._state_iteration(x, k, behaviors, eval_r_overline)
                 break
             for x_index, x in self.ss:
-                self._state_iteration(x_index, k, behaviors, eval_r_overline)
+                self._state_iteration(x, k, behaviors, eval_r_overline)
         services_sequence = np.argmax(self._alpha[0:-1], axis=1)
         return services_sequence, self._behaviors.extractBehavior(services_sequence)
       
@@ -85,6 +86,9 @@ class MaxEntropyCrowdsouring(CrowdsourcingBase):
         return -pi.getEntropy()
     
 class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable):
+        super().__init__(ss, services, cost, N=1) # N=1 because we are using a greedy approach
+    
     def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S))
         self._alpha = np.zeros((self.N + 1, self.S))
@@ -94,7 +98,6 @@ class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
         self.initialized = True
         
     def _state_iteration(self, state: np.ndarray, k: int, behaviors: list[StateCondPF], eval_r_overline: callable):
-        x_index = self.ss.toIndex(state)
         for s in range(self.S):
             pi_cond = behaviors[s]
             pi = pi_cond.getNextStatePF(state)
