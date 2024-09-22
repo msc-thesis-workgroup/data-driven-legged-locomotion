@@ -34,7 +34,7 @@ class Service(ABC):
     
     @abstractmethod
     def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
-        """Generates a behavior for the given state."""
+        """Generates a behavior starting from the given state for the given time window."""
         pass
     
     def generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
@@ -184,16 +184,18 @@ class MujocoService(Service):
         return SingleBehavior(self.ss, cond_pf)
     
 class OfflineReaderService(Service):
-    """A service that reads a behavior from a file."""
+    """A service that reads a behavior from a file. The behavior is generated only once and then returned
+         for every initial condition."""
     def __init__(self, ss: StateSpace, file_path: str):
         super().__init__(ss)
         self.file_path = file_path
         self.behavior = self._readBehavior(file_path)
     
+    @abstractmethod
     def _readBehavior(self, file_path: str) -> Behavior:
         """Reads a behavior from a file."""
         raise NotImplementedError("OfflineReaderService._readBehavior must be implemented.")
     
     def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
-        """Generates a behavior for the given state."""
+        """This service ignores the initial state and the time window"""
         return self.behavior
