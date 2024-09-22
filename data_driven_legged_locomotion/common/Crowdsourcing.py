@@ -87,8 +87,8 @@ class MaxEntropyCrowdsouring(CrowdsourcingBase):
         return -pi.getEntropy()
     
 class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
-    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable):
-        super().__init__(ss, services, cost, N=1) # N=1 because we are using a greedy approach
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, n_samples: int = 100):
+        super().__init__(ss, services, cost, N=1, n_samples=n_samples) # N=1 because we are using a greedy approach
     
     def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S))
