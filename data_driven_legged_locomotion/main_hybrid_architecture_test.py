@@ -8,8 +8,6 @@ import mujoco
 import mujoco.viewer as viewer
 import time
 
-from pyquaternion import Quaternion
-
 from data_driven_legged_locomotion.common import ServiceSet, GreedyMaxEntropyCrowdsouring
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, Cost
 from data_driven_legged_locomotion.utils import CsvFormatter
@@ -87,7 +85,7 @@ variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
 AGENT_HORIZON = 1
-N_SAMPLES = 100
+N_SAMPLES = 500
 DELTA_STEP = 0.003
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 services.addService(hybrid_service)
@@ -150,9 +148,9 @@ def get_control_without_crowdsourcing(env):
 	global service_index
 	# JUST FOR ONE TEST
 	# env.data.qvel[3:6] = env.data.qvel[3:6] * 0.33
-
+	
 	x = env.get_state()
-	#log_row.append(list(x))
+	log_row.append(list(x))
 
 	# Update the data for the services
 	for index,service in enumerate(services.services):
@@ -171,12 +169,13 @@ def get_control_without_crowdsourcing(env):
 			state[1] += 0.003/np.sqrt(2)
 		elif index == 2:
 			state[1] += 0.003
+		log_row.append(list(state))
 		costs.append(cost(state, 0))
 				
 	service_index = np.argmin(costs)
 	
 	print(f"[DEBUG] Service index: {service_index}")
-	#log_row.append(service_index)
+	log_row.append(service_index)
 
 
 	# Cheating block
@@ -241,6 +240,7 @@ with env.launch_passive_viewer() as viewer:
 			# Sol 1
 			temp = old_agent_index
 			u = get_control(env)
+			#u = get_control_without_crowdsourcing(env)
 			log_row.append(list(u))
 			env.step(u)
 

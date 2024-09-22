@@ -4,6 +4,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
+# TODO: Delete this file before submitting the final version of the project
+
 class Cost:
     def __init__(self, obstacles_positions, obstacles_sizes, alpha, beta):
         self.obstacles_positions = obstacles_positions
@@ -16,7 +18,7 @@ class Cost:
             
             r = np.array([10.0, 10.0])
             #z_torso = 1.06
-            costs = 20*(x[0] - r[0])**2 + (x[1] - r[1])**2 -10/(np.sqrt(( ((x[0]-r[0])/1000)**2 + ((x[1] - r[1])/1000)**2 +0.1)))
+            costs = 50*((x[0] - r[0])**2 + (x[1] - r[1]))**2 -10/(np.sqrt(( ((x[0]-r[0])/1000)**2 + ((x[1] - r[1])/1000)**2 +0.1)))
             
             costs = np.squeeze(costs)
             #costs += self.alpha*(x[:,2] - z_torso)**2
@@ -29,16 +31,16 @@ class Cost:
 
 
             # Add wall costs. The walls are modeled as univariate gaussian obstacles from the corners of the room: x = -1, x = 11, y = -1, y = 11.
-            x_s = np.array([-1, 11])
-            y_s = np.array([-1, 11])
-            wall_size = 0.5
-            wall_alpha = self.alpha
-            wall_cost = 0
-            for x_i in x_s:
-                wall_cost += wall_alpha*np.exp(-((x[0] - x_i)**2/(2*wall_size**2)))
-            for y_i in y_s:
-                wall_cost += wall_alpha*np.exp(-((x[1] - y_i)**2/(2*wall_size**2)))
-            costs += wall_cost
+            # x_s = np.array([-1, 11])
+            # y_s = np.array([-1, 11])
+            # wall_size = 0.5
+            # wall_alpha = self.alpha
+            # wall_cost = 0
+            # for x_i in x_s:
+            #     wall_cost += wall_alpha*np.exp(-((x[0] - x_i)**2/(2*wall_size**2)))
+            # for y_i in y_s:
+            #     wall_cost += wall_alpha*np.exp(-((x[1] - y_i)**2/(2*wall_size**2)))
+            # costs += wall_cost
             
             return costs
         return cost
@@ -52,8 +54,8 @@ if __name__ == "__main__":
     x, y = np.meshgrid(x, y)
 
     # Define obstacles and other parameters
-    obstacles_positions = [[3, 3], [5, 5]]
-    obstacles_sizes = [[1, 1], [1, 1]]
+    obstacles_positions = [[3, 3],[4,4], [5, 5]]
+    obstacles_sizes = [[1, 1],[1,1], [1, 1]]
     alpha = 1000.0
     beta = 10
 
