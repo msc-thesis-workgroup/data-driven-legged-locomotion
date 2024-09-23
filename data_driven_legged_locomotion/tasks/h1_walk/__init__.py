@@ -1,1 +1,2 @@
-from .h1_walk import H1WalkEnvironment, h1_walk_cost
+from .h1_walk_environment import H1WalkEnvironment, H1WalkEnvironmentDiscrete, H1WalkMapEnvironment
+from .h1_walk_costs import h1_quadratic_objective

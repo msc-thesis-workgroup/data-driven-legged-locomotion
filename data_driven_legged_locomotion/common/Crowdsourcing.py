@@ -8,12 +8,13 @@ from .StateSpace import StateSpace
 
 class CrowdsourcingBase(ABC):
     """If N==1 the state space can be continuous, otherwise it must be discrete."""
-    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1, n_samples: int = 100):
         self.ss = ss
         self.services = services
         self.cost = cost
         self.N = N
         self.initialized = False
+        self.n_samples = n_samples
         
     @property
     def S(self):
@@ -47,7 +48,7 @@ class CrowdsourcingBase(ABC):
         for s in range(self.S):
             pi_cond = behaviors[s]
             pi = pi_cond.getNextStatePF(state)
-            exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
+            exp_r_overline = pi.monteCarloExpectation(eval_r_overline, self.n_samples)
             self._a[k, s, x_index_flat] = self._get_DKL(pi) + exp_r_overline
         self._alpha[k,:] = self._solveOptimization(self._a[k, :, x_index_flat])
     
@@ -79,15 +80,15 @@ class CrowdsourcingBase(ABC):
         return services_sequence, self._behaviors.extractBehavior(services_sequence)
       
 class MaxEntropyCrowdsouring(CrowdsourcingBase):
-    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1):
-        super().__init__(ss, services, cost, N)
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, N: int = 1, n_samples: int = 100):
+        super().__init__(ss, services, cost, N, n_samples=n_samples)
     
     def _get_DKL(self, pi: StatePF) -> float:
         return -pi.getEntropy()
     
 class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
-    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable):
-        super().__init__(ss, services, cost, N=1) # N=1 because we are using a greedy approach
+    def __init__(self, ss: StateSpace, services: ServiceSet, cost: callable, n_samples: int = 100):
+        super().__init__(ss, services, cost, N=1, n_samples=n_samples) # N=1 because we are using a greedy approach
     
     def initialize(self, initial_state: np.ndarray, time: float = 0.0):
         self._a = np.zeros((self.N + 1, self.S))
@@ -101,7 +102,7 @@ class GreedyMaxEntropyCrowdsouring(MaxEntropyCrowdsouring):
         for s in range(self.S):
             pi_cond = behaviors[s]
             pi = pi_cond.getNextStatePF(state)
-            exp_r_overline = pi.monteCarloExpectation(eval_r_overline)
+            exp_r_overline = pi.monteCarloExpectation(eval_r_overline, self.n_samples)
             self._a[k, s] = self._get_DKL(pi) + exp_r_overline
         self._alpha[k,:] = self._solveOptimization(self._a[k, :])
         
