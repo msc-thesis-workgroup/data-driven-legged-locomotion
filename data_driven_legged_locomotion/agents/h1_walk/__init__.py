@@ -1,1 +1,1 @@
-from .mujoco_mpc.agent import MujocoMPCService, MujocoMPCServiceV2
+from .mujoco_mpc import *
