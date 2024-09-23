@@ -28,6 +28,7 @@ class Cylinder(Obstacle):
     last_id = 0
     
     def __init__(self, pos: np.ndarray, radius: float = 0.8, height: float = 0.5):
+        super().__init__()
         self.id = Cylinder.last_id
         Cylinder.last_id += 1
         self.radius = radius
@@ -51,6 +52,7 @@ class SlidingWall(DynamicObstacle):
     last_id = 0
     
     def __init__(self, start_pos: np.ndarray, end_pos: np.ndarray, shift_vect: np.ndarray, width: float = 0.2, height: float = 1.0):
+        super().__init__()
         self.id = SlidingWall.last_id
         SlidingWall.last_id += 1
         self.start_pos = start_pos
@@ -90,7 +92,7 @@ class SlidingWall(DynamicObstacle):
     def step(self, model: mujoco.MjModel, delta_t: float):
         if self.transition_end:
             return
-        translation = np.linalg.norm(o[2])
+        translation = np.linalg.norm(self.shift_vect)
         direction = self.shift_vect/translation
         if np.dot(direction, self.pos) >= translation:
             self.transition_end = True
@@ -120,7 +122,12 @@ class Map:
         return self.obstacles.get(name, [])
     
     def dynamic_obstacles(self):
-        return functools.reduce(lambda x,y: x+y,map(lambda x: x if isinstance(x, DynamicObstacle) else [], self.obstacles),[])
+        res = []
+        for obs_list in self.obstacles.values():
+            for obs in obs_list:
+                if isinstance(obs, DynamicObstacle):
+                    res.append(obs)
+        return res
     
     def cost(self, pos: np.ndarray) -> float:
         c = 0.0
