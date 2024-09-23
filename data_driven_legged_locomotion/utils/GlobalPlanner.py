@@ -5,12 +5,15 @@ from data_driven_legged_locomotion.maps import Map
 
 class GlobalPlanner:
     def __init__(self, map: Map, start_pos: np.ndarray, goal_pos: np.ndarray):
-        self.map = map
+        if map is None:
+            self.map = Map()
+        else:
+            self.map = map
         self.start_pos = start_pos
         self.goal_pos = goal_pos
     
     def _cost_func(self, pos: np.ndarray):
-        return self.map.get_cost(pos) + np.linalg.norm(pos - self.goal_pos)
+        return self.map.cost(pos) + np.linalg.norm(pos - self.goal_pos)
     
     def get_path(self, n_bins = 100):
         """Gets a path from starting_point to goal_point using A*"""
