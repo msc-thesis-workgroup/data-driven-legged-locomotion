@@ -1,7 +1,8 @@
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 
-from data_driven_legged_locomotion.maps import Map
+from data_driven_legged_locomotion.maps.h1_walk import Map
 
 class GlobalPlanner:
     def __init__(self, map: Map, start_pos: np.ndarray, goal_pos: np.ndarray):
@@ -14,6 +15,22 @@ class GlobalPlanner:
     
     def _cost_func(self, pos: np.ndarray):
         return self.map.cost(pos) + np.linalg.norm(pos - self.goal_pos)
+    
+    def plot_cost(self):
+        path = self.get_path()
+        X, Y = np.meshgrid(np.linspace(-1, 11, 100), np.linspace(-1, 11, 100))
+        z = np.array([self._cost_func(np.array([x,y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
+        Z = z.reshape(X.shape)
+        grad = np.gradient(Z)
+        fig_3d = plt.figure()
+        ax = fig_3d.add_subplot(projection='3d')
+        ax.plot_surface(X, Y, Z)
+        fig_grad = plt.figure()
+        ax = fig_grad.add_subplot()
+        ax.quiver(X, Y, -grad[1], -grad[0], angles='xy')
+        ax.plot(path[:,0], path[:,1], 'r')
+        plt.show()
+        return fig_3d, fig_grad
     
     def get_path(self, n_bins = 100):
         """Gets a path from starting_point to goal_point using A*"""
