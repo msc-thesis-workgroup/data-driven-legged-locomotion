@@ -4,10 +4,13 @@ from pathlib import Path
 from .StateSpace import StateSpace
 
 class MujocoEnvironment:
-    def __init__(self, ss: StateSpace, model_path: Path) -> None:
+    def __init__(self, ss: StateSpace, model: Path | mujoco.MjModel) -> None:
         self.ss = ss
-        model_path = str(model_path)
-        self.model = mujoco.MjModel.from_xml_path(model_path)
+        if isinstance(model, Path):
+            model = str(model)
+            self.model = mujoco.MjModel.from_xml_path(model)
+        else:
+            self.model = model
         self.n_states = self.model.nq + self.model.nv
         self.n_actions = self.model.nu
         if self.n_states != ss.n_states:
