@@ -32,12 +32,6 @@ class H1WalkAgent():
         
         # Update the mocap position
         self._sync_env_state()
-        self._update_mocap_pos()
-    
-    def _update_mocap_pos(self):
-        current_pos = self.data.qpos[:3]
-        delta_pos = np.concatenate([self.direction, np.zeros(1)])
-        self.data.mocap_pos[0] = current_pos + delta_pos
         
     def set_reference(self, pos, quat):
         self.data.mocap_pos = pos
