@@ -116,8 +116,8 @@ class Map:
         for k, v in self.obstacles.items():
             v.sort(key=lambda x: x.id)
     
-    def __getattribute__(self, name: str):
-        return self.obstacles[name]
+    def get_obstacles(self, name: str) -> list[Obstacle]:
+        return self.obstacles.get(name, [])
     
     def dynamic_obstacles(self):
         return functools.reduce(lambda x,y: x+y,map(lambda x: x if isinstance(x, DynamicObstacle) else [], self.obstacles),[])
