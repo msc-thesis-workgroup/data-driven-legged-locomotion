@@ -1,5 +1,4 @@
 from datetime import datetime
-import matplotlib.pyplot as plt
 import mediapy as media
 import numpy as np
 from pathlib import Path
