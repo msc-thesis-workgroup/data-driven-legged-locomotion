@@ -12,7 +12,7 @@ from data_driven_legged_locomotion.common import ServiceSet, GreedyMaxEntropyCro
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, h1_walk_cost
 from data_driven_legged_locomotion.utils import CsvFormatter
 
-from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService, TDMPCServiceV2
+from recyclebin.tdmpc_service import TDMPCService, TDMPCServiceV2
 
 # Experiment info
 current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

@@ -31,46 +31,38 @@ logger.addHandler(fileHandler)
 env = H1WalkEnvironment()
 ss = env.ss
 
-# Adding obstacles
+# Define obstacles positions and sizes
 obstacle_positions = [
-    #[2.0, 2.0, 0],  # Position of the second obstacle
-	[3.0, 3.0, 0],  # Position of the second obstacle
-    [4.0, 4.0, 0],  # Position of the first obstacle
-	[5.0, 5.0, 0],  # Position of the second obstacle
-	[6.0, 6.0, 0],  # Position of the second obstacle
-
+	[3.0, 3.0, 0],  # Position of the first obstacle
+    [4.0, 4.0, 0],  # Position of the second obstacle
+	[5.0, 5.0, 0],  # Position of the third obstacle
+	[6.0, 6.0, 0],  # Position of the fourth obstacle
 ]
-
 obstacle_sizes = [
-    #[0.7, 0.7, 2],  # Size of the first obstacle
 	[0.7, 0.7, 3],  # Size of the first obstacle
-    [0.7, 0.7, 4],  # Size of the first obstacle
-	[0.7, 0.7, 5],  # Size of the first obstacle
-	[0.7, 0.7, 6],  # Size of the second obstacle
+    [0.7, 0.7, 4],  # Size of the second obstacle
+	[0.7, 0.7, 5],  # Size of the third obstacle
+	[0.7, 0.7, 6],  # Size of the fourth obstacle
 ]
-
-# Optionally, define custom RGBA colors (default is red)
 obstacle_rgba = [
-    #[1, 0, 0, 1],  # Red for the first obstacle
-    [0, 1, 0, 1],  # Green for the second obstacle
+    [0, 1, 0, 1],  # Green for the first obstacle
 	[0, 0, 1, 1],  # Blue for the second obstacle
-	[1, 1, 0, 1],  # Yellow for the second obstacle
-	[1, 0, 1, 1],  # Magenta for the second obstacle
+	[1, 1, 0, 1],  # Yellow for the third obstacle
+	[1, 0, 1, 1],  # Magenta for the fourth obstacle
 ]
 
+# Create obstacles
 env.create_obstacles(obstacle_positions, obstacle_sizes, obstacle_rgba)
 model = env.model
+
+# Cost
 cost_obj = Cost(obstacle_positions, obstacle_sizes)
 cost = cost_obj.get_cost_function()
-# cost = h1_walk_cost
-
-
-
 
 # Crowdsourcing
 services = ServiceSet(ss)
 
-# Video
+# Video parameters
 video_fps = 60
 video_resolution = (720, 1280)
 frame_count = 0
@@ -80,7 +72,7 @@ if not video_path.parent.exists():
 		video_path.parent.mkdir()
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
-# Services
+# Defining Services
 variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
@@ -90,11 +82,10 @@ DELTA_STEP = 0.003
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 services.addService(hybrid_service)
 hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
-#hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
-hybrid_service_2.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.9238795, 0, 0, 0.3826834]))
+hybrid_service_2.set_policy_reference(np.array([0.9238795, 0, 0, 0.3826834]))
 services.addService(hybrid_service_2)
 hybrid_service_3 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
-hybrid_service_3.set_policy_reference(np.array([0.0, 0.0, 0.98, 0.7071068, 0, 0, 0.7071068]))
+hybrid_service_3.set_policy_reference(np.array([0.7071068, 0, 0, 0.7071068]))
 services.addService(hybrid_service_3)
 
 # Crowdsourcing
@@ -108,9 +99,6 @@ logger.log(logging.INFO, log_header)
 log_row = []
 
 
-first_time = True
-old_agent_index = None
-service_index = None
 
 def get_control(env):
 
@@ -122,33 +110,33 @@ def get_control(env):
 		#print("index",index ,"id: ", id(service))
 		service.set_data(env.data)
 
-	states = []
 	crowdsourcing.initialize(x, time=env.time)
 
+	# Getting information from the crowdsourcing for the log
 	for i in range(len(services.services)):
 		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
 		#print("service: ", i,"next_state: ", next_state[0:3])
 		log_row.append(list(next_state))
- 
+	
+	# Running the crowdsourcing
 	service_list, behavior = crowdsourcing.run()
 	service_index = service_list[0]
-	
 	
 	print(f"[DEBUG] Chosen Service index: {service_index}")
 	log_row.append(service_index)
 	
-	u = services.services[service_index]._get_control(x, t=env.time)
+	u = services.services[service_index].get_control(x, t=env.time)
 	return u
 
 
-
+first_time = True
+old_agent_index = None
+service_index = None
 def get_control_without_crowdsourcing(env):
 	global first_time
 	global old_agent_index
 	global service_index
-	# JUST FOR ONE TEST
-	# env.data.qvel[3:6] = env.data.qvel[3:6] * 0.33
-	
+
 	x = env.get_state()
 	log_row.append(list(x))
 
@@ -193,7 +181,7 @@ def get_control_without_crowdsourcing(env):
 	old_agent_index = service_index
 
 	winner_service = services.services[service_index]
-	u_traj = winner_service._get_control_trajectory(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
+	u_traj = winner_service.get_control_trajectory(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
 	
 	return u_traj[-1] # the trajectory is made by only one element. TODO REFACTOR THIS TO BE MORE CLEAR
 
