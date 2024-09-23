@@ -13,8 +13,9 @@ from data_driven_legged_locomotion.agents.h1_walk.mujoco_mpc import H1PolarWalkA
 from data_driven_legged_locomotion.agents.h1_walk import FNOStateSpace, OfflineAR2Service
 from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCServiceV2 as MujocoMPCService
 from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
-from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, H1WalkMapEnvironment, h1_quadratic_objective as h1_walk_cost
-from data_driven_legged_locomotion.utils import CsvFormatter
+from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, H1WalkMapEnvironment, H1TrackCost, h1_quadratic_objective as h1_walk_cost
+from data_driven_legged_locomotion.utils import CsvFormatter, GlobalPlanner
+from data_driven_legged_locomotion.utils.paths import MA_filter
 
 from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
 
@@ -38,9 +39,13 @@ PP = []
 # Environment
 #env = PendulumEnvironment()
 env = H1WalkEnvironment()
-ss = env.ss
 model = env.model
-cost = h1_walk_cost
+starting_pos = np.array([0.0, 0.0])
+ending_pos = np.array([10.0, 10.0])
+global_planner = GlobalPlanner(None, starting_pos, ending_pos)
+path = global_planner.get_path()
+path = MA_filter(path)
+cost = H1TrackCost(env, path)
 
 # Video
 video_fps = 60
@@ -56,13 +61,16 @@ renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolu
 agent = H1PolarWalkAgent(env)
 
 # Crowdsourcing
-services = ServiceSet(ss)
 ss = FNOStateSpace()
+services = ServiceSet(ss)
 current_dir = pathlib.Path(mujoco_mpc_agent_module.__file__).parent
 models_file = current_dir / "models_ols_fno.pkl"
 service_forward = OfflineAR2Service(ss, models_file, "FORWARD")
 service_left = OfflineAR2Service(ss, models_file, "LEFT")
 service_right = OfflineAR2Service(ss, models_file, "RIGHT")
+services.addService(service_forward)
+services.addService(service_left)
+services.addService(service_right)
 crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
 
 #fno
@@ -126,11 +134,13 @@ def get_control2(env):
   service_list, behavior = crowdsourcing.run()
   service_index = service_list[0]
   if service_index == 0:
-    agent.set_command("FORWARD")
+    command = "FORWARD"
   elif service_index == 1:
-    agent.set_command("LEFT")
+    command = "LEFT"
   elif service_index == 2:
-    agent.set_command("RIGHT")
+    command = "RIGHT"
+  print(f"[DEBUG] Command {command}")
+  agent.set_command(command)
   u = agent.get_control_action()
   return u
   
@@ -165,8 +175,9 @@ with env.launch_passive_viewer() as viewer:
 
       # Step the simulation forward.
       control_time = time.time()
-      u = get_control(env)
-      log_row.append(list(u))
+      u = get_control2(env)
+      env.data.mocap_pos = agent.data.mocap_pos # This is needed to visualize the mocap in the viewer
+      #log_row.append(list(u))
       control_time = time.time() - control_time
       env.step(u)
 
@@ -187,7 +198,7 @@ with env.launch_passive_viewer() as viewer:
           frame_count += 1
           
       # Log the data
-      logger.log(logging.DEBUG, log_row)
+      #logger.log(logging.DEBUG, log_row)
       
       # Rudimentary time keeping, will drift relative to wall clock.
       time_until_next_step = env.timestep - (time.time() - step_start)
