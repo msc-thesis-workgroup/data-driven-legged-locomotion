@@ -36,7 +36,7 @@ class H1TrackCost:
         x = np.array([x,y])
         closest_point, crosstrack_error, tangent_vector = closest_point_on_path(x, path, path_d)
         orientation_error = (np.dot(forward_vector, tangent_vector)-1)**2
-        return crosstrack_error + 10*orientation_error
+        return (crosstrack_error + 10*orientation_error)*10
     
     def __call__(self, samples, k):
         """Cost function for the H1 track task. 
