@@ -3,21 +3,21 @@ import mujoco
 import numpy as np
 import scipy
 
-from data_driven_legged_locomotion.maps import Map
+from data_driven_legged_locomotion.maps.h1_walk import Map
 from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vector
 from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment, DiscreteStateSpace
 
 class H1WalkEnvironment(MujocoEnvironment):
     def __init__(self, ss = None, custom_model = None):
         if custom_model is None:
-            model = self.__get_model_path()
+            model = self._get_model_path()
         else:
             model = custom_model
         if ss is None:
             ss = StateSpace(26+25)
         super().__init__(ss, model)
         
-    def __get_model_path(self):
+    def _get_model_path(self):
         base_path = pathlib.Path(__file__).parent.parent.parent.parent
         print("[DEBUG] base_path: ", base_path)
         task_candidates = [path for path in pathlib.Path(base_path).rglob("mujoco_mpc-build/mjpc/tasks/h1/walk/task.xml")]
@@ -61,7 +61,7 @@ class H1WalkMapEnvironment(H1WalkEnvironment):
     def __init__(self, map: Map):
         self.map = map
         model_spec = mujoco.MjSpec()
-        model_spec.from_file(str(self.__get_model_path()))
+        model_spec.from_file(str(self._get_model_path()))
         map.add_to_spec(model_spec)
         model = model_spec.compile()
         self.trigger = False
@@ -76,7 +76,7 @@ class H1WalkMapEnvironment(H1WalkEnvironment):
         self.trigger = True
     
     def step(self, u: np.ndarray|float):
-        super(MujocoEnvironment, self).step(u)
+        MujocoEnvironment.step(self, u)
         self.update_dynamic_obs()
         
     

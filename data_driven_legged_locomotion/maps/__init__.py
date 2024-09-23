@@ -1,1 +1,0 @@
-from .h1_walk.map import *

@@ -111,7 +111,7 @@ class Map:
         for obs in obstacles:
             if not isinstance(obs, Obstacle):
                 raise ValueError("All obstacles must be instances of Obstacle.")
-            l = self.obstacles.setdefault(obs.__name__, [])
+            l = self.obstacles.setdefault(obs.__class__.__name__, [])
             l.append(obs)
         for k, v in self.obstacles.items():
             v.sort(key=lambda x: x.id)
@@ -124,13 +124,16 @@ class Map:
     
     def cost(self, pos: np.ndarray) -> float:
         c = 0.0
-        for obs in self.obstacles:
-            c += obs.cost(pos)
+        for obs_list in self.obstacles.values():
+            for obs in obs_list:
+                c += obs.cost(pos)
         return c
     
     def add_to_spec(self, model_spec: dict):
-        for obs in self.obstacles:
-            obs.add_to_spec(model_spec)
+        for obs_list in self.obstacles.values():
+            for obs in obs_list:
+                print(f"Adding obstacle {obs} to model spec.")
+                obs.add_to_spec(model_spec)
     
     def step(self, model: mujoco.MjModel, delta_t: float):
         for obs in self.dynamic_obstacles():
