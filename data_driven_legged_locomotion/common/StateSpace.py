@@ -1,8 +1,20 @@
 import numpy as np
 
 class StateSpace:
-    """StateSpace represents a generic continuous state space over which PFs are defined"""
+    """StateSpace represents a generic continuous state space over which PFs are defined."""
+    
     def __init__(self, n_states: int, bounds: np.array = None):
+        """
+        Initializes the StateSpace class.
+
+        Args:
+            n_states (int): The number of states.
+            bounds (np.array, optional): The bounds for each state. Defaults to None.
+
+        Raises:
+            ValueError: If the dimension vector does not match the size of the ranges vector.
+            ValueError: If any of the bounds are invalid.
+        """
         self.n_states = n_states
         if bounds is None:
             bounds = np.repeat(np.array([[-np.inf, np.inf]]), n_states, axis=0)
@@ -14,21 +26,45 @@ class StateSpace:
         self.bounds = bounds
 
 class DiscreteStateSpace(StateSpace):
-    """DiscreteStateSpace provides a representation for a discrete state space over which PFs are defined"""
+    """DiscreteStateSpace provides a representation for a discrete state space over which PFs are defined."""
+    
+    def __init__(self, n_states: int, bounds: np.ndarray, max_deltas: list[int]):
+        """
+        Initializes the DiscreteStateSpace class.
 
-    def __init__(self, n_states: int, bounds: np.ndarray, max_deltas = list[int]):
-        """Initializes the state space with the given number of states and bounds.
-        max_deltas is a list of the maximum cell size in each dimension."""
+        Args:
+            n_states (int): The number of states.
+            bounds (np.ndarray): The bounds for each state.
+            max_deltas (list[int]): The maximum cell size in each dimension.
+
+        Raises:
+            ValueError: If bounds are not defined.
+        """
         if bounds is None:
             raise ValueError("Bounds must be defined for a discrete state space.")
         super().__init__(n_states, bounds)
         self._buildStateSpace(max_deltas)
 
     def __iter__(self):
+        """
+        Initializes the iterator.
+
+        Returns:
+            DiscreteStateSpace: The iterator object.
+        """
         self._iter_state = 0
         return self
 
     def __next__(self):
+        """
+        Returns the next state in the iteration.
+
+        Returns:
+            tuple: The index and the corresponding state.
+
+        Raises:
+            StopIteration: If the iteration exceeds the maximum index.
+        """
         max_index = np.prod(self.dims) - 1
         if self._iter_state > max_index:
             raise StopIteration
@@ -38,24 +74,50 @@ class DiscreteStateSpace(StateSpace):
 
     @property
     def ranges(self):
+        """
+        Returns the ranges for each state.
+
+        Returns:
+            np.ndarray: The ranges for each state.
+        """
         return self.bounds[:,1] - self.bounds[:,0]
     
     @property
     def total_combinations(self):
-        #print(self.dims)
+        """
+        Returns the total number of combinations in the state space.
+
+        Returns:
+            int: The total number of combinations.
+        """
         return np.prod(self.dims)
 
     def _buildStateSpace(self, max_deltas):
+        """
+        Builds the state space with the given maximum deltas.
+
+        Args:
+            max_deltas (list[int]): The maximum cell size in each dimension.
+        """
         self.dims = self.ranges / max_deltas # Element-wise division
         self.dims = np.ceil(self.dims).astype(int) + 1 # If the division is not an integer, we increase the resolution to make the space uniform
         self.deltas = self.ranges / (self.dims-1) # The actual sampling resolution
-        # linspaces = []
-        # for i in range(self.n_states):
-        #     linspaces.append(np.linspace(self.bounds[i,0],self.bounds[i,1],num=self.dims[i], endpoint=True))
-        # self.X = np.stack(np.meshgrid(*linspaces,indexing='xy'))
 
     def toIndex(self, state: np.ndarray) -> tuple:
-        """Converts a state to an index in the state space."""
+        """
+        Converts a state to an index in the state space.
+
+        Args:
+            state (np.ndarray): The state to convert.
+
+        Returns:
+            tuple: The index corresponding to the state.
+
+        Raises:
+            ValueError: If the state shape does not match the expected shape.
+            ValueError: If the state is lower than the lower bounds.
+            ValueError: If the state is higher than the upper bounds.
+        """
         if len(state.shape) == 1:
             state = np.expand_dims(state, axis=0)
         if state.shape[1] != self.n_states:
