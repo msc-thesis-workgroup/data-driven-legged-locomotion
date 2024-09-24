@@ -88,8 +88,20 @@ class H1WalkEnvironment(MujocoEnvironment):
 
         
     def reach_state(self, desired_state: np.ndarray, n_steps: int, viewer, video, renderer, frame_count, video_fps):
-        """Returns the control action to reach the desired state at the given time."""
-       # TODO: Delete this method. It is not used anymore.
+        """
+        Reach a desired state in n_steps steps.
+        Args:
+            desired_state (np.ndarray): The desired state to reach.
+            n_steps (int): The number of steps to reach the desired state.
+            viewer (mujoco.MjViewer): The viewer to render the environment.
+            video (mujoco.VideoRecorder): The video recorder to save the video.
+            renderer (mujoco.Renderer): The renderer to render the scene.
+            frame_count (int): The current frame count.
+            video_fps (int): The frames per second of the video.
+        Returns:
+            int: The updated frame count.
+        """
+        # TODO: Delete this method. It is not used anymore.
         assert desired_state.shape[0] == self.n_states
         
         print("[DEBUG] n_steps: ", n_steps)
@@ -163,67 +175,35 @@ class H1WalkEnvironment(MujocoEnvironment):
         
         return frame_count
 
-def h1_walk_cost(x, k):
-    r = np.array([10.0, 10.0])
-    z_torso = 1.06
-    #obs = np.array([4,4])
-    costs = (x[:,0] - r[0])**2 + (x[:,1] - r[1])**2
-    costs = np.squeeze(costs)
-    costs += (x[:,2] - z_torso)**2
-    return costs
-
-def h1_walk_cost_trajectory(x, k):
-    r = np.array([10.0, 0.0])
-    costs = (x[0] - r[0])**2 + (x[1] - r[1])**2
-    costs = np.squeeze(costs)
-    return costs
-
 class Cost:
+    """Cost function for the H1 walk task"""
     def __init__(self, obstacles_positions, obstacles_sizes):
         self.obstacles_positions = obstacles_positions
         self.obstacles_sizes = obstacles_sizes
         self.alpha = 300.0
         self.beta = 1
 
-    def get_cost_function(self):
-        # def cost(x, k):
-        #     r = np.array([10.0, 10.0])
-        #     z_torso = 1.06
-        #     costs = 20*(x[:,0] - r[0])**2 + (x[:,1] - r[1])**2 -10/(np.sqrt(( ((x[:,0]-r[0])/1000)**2 + ((x[:,1] - r[1])/1000)**2 +0.1)))
-        #     costs = np.squeeze(costs)
-        #     costs += self.alpha*(x[:,2] - z_torso)**2
+    def get_cost_function(self) -> callable:
+        """Return the cost function for the H1 walk task"""
 
-        #     # obstacles are modeled as bivariate gaussian obstacles
-        #     for i in range(len(self.obstacles_positions)):
-        #         obs = self.obstacles_positions[i]
-        #         size = self.beta*self.obstacles_sizes[i]
-        #         costs += self.alpha*np.exp(-((x[:,0] - obs[0])**2/(2*size[0]**2) + (x[:,1] - obs[1])**2/(2*size[1]**2)))
-
-
-        #     # Add wall costs. The walls are modeled as bivariate gaussian obstacles from the corners of the room: (-1,-1), (-1,11), (11,-1), (11,11).
-        #     x_s = np.array([-1, 11])
-        #     y_s = np.array([-1, 11])
-        #     wall_size = 1
-        #     wall_alpha = self.alpha
-        #     wall_cost = 0
-        #     for x_i in x_s:
-        #         wall_cost += wall_alpha*np.exp(-((x[:,0] - x_i)**2/(2*wall_size**2)))
-        #     for y_i in y_s:
-        #         wall_cost += wall_alpha*np.exp(-((x[:,1] - y_i)**2/(2*wall_size**2)))
-        #     costs += wall_cost
+        def cost(x: np.ndarray, k: int) -> np.ndarray:
+            """
+            Compute the cost for a given state x.
+            Args:
+                x (np.ndarray): The state to compute the cost for.
+                k (int): The time step.
+            Returns:
+                np.ndarray: The cost for each state in x.
             
-        #     return costs
-
-
-        def cost(x, k):
+            """
             r = np.array([10.0, 10.0])
             costs = 30*np.exp(np.sqrt( ((x[0] - r[0])/4)**2 + ((x[1] - r[1])/4)**2 ))
 
-            z_mean = np.mean(x[2])
-            if z_mean < 0.88:
-                costs = np.ones(x.shape[0])*1000000
-                print("[WARNING] Torso too low. This policy could make the robot fall.")
-                return costs
+            # z_mean = np.mean(x[2])
+            # if z_mean < 0.88:
+            #     costs = np.ones(x.shape[0])*1000000
+            #     print("[WARNING] Torso too low. This policy could make the robot fall.")
+            #     return costs
 
             # obstacles are modeled as bivariate gaussian obstacles
             for i in range(len(self.obstacles_positions)):
