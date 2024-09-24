@@ -7,7 +7,7 @@ import time
 from data_driven_legged_locomotion.common import MujocoService, StateSpace, OfflineReaderService, Behavior, NormalStateCondPF, SingleBehavior
 
 class MujocoMPCService(MujocoService):
-    """A service that uses a Mujoco MPC agent to generate behaviors."""
+    """A service that uses a deterministic Mujoco MPC agent to generate behaviors."""
     def __init__(self, ss: StateSpace, model, variances: float = None, direction: np.ndarray = np.array([1.0, 0.0]), policy_sampling_time: float = 0.02, env = None):
         # We disable zero-order hold as we want the agent to interpolate the control action between the policy sampling time
         super().__init__(ss, model, variances, enable_zoh=False, policy_sampling_time=policy_sampling_time)

@@ -6,41 +6,106 @@ from .StatePF import StateCondPF, NormalStatePF, FakeStateCondPF
 from .StateSpace import StateSpace
 
 
-class Behavior(ABC): #{pi(x_k|x_k-1)}_0:N
+class Behavior(ABC):
     """A Behavior is a sequence of InstantBehaviors that describes the behavior of a system in a finite span of time."""
+    
     def __init__(self, ss: StateSpace, time_window: int):
+        """
+        Initializes the Behavior class.
+
+        Args:
+            ss (StateSpace): The state space.
+            time_window (int): The time window for the behavior.
+        """
         self.ss = ss
         self.N = time_window
         self.time_window: list[StateCondPF] = []
     
     def getAtTime(self, k: int) -> StateCondPF:
-        """Returns the state conditional probability distribution at time k."""
+        """
+        Returns the state conditional probability distribution at time k.
+
+        Args:
+            k (int): The time index.
+
+        Returns:
+            StateCondPF: The state conditional probability distribution at time k.
+
+        Raises:
+            ValueError: If the time index k is out of bounds.
+        """
         if k < 0 or k > self.N - 1:
             raise ValueError(f"Time index k must be between 0 and {self.N-1}.")
         return self.time_window[k]
 
 class Service(ABC):
     """A Service provides a behavior to the crowdsourcing algorithm."""
+    
     def __init__(self, ss: StateSpace):
+        """
+        Initializes the Service class.
+
+        Args:
+            ss (StateSpace): The state space.
+        """
         self.ss = ss
     
     @property
     def last_u(self) -> np.ndarray:
+        """
+        Returns the last control action.
+
+        Returns:
+            np.ndarray: The last control action.
+
+        Raises:
+            ValueError: Always, as the service does not have a control action.
+        """
         raise ValueError("The service does not have a control action.")
     
     @property
     def last_t(self) -> float:
+        """
+        Returns the last control time.
+
+        Returns:
+            float: The last control time.
+
+        Raises:
+            ValueError: Always, as the service does not have a control action.
+        """
         raise ValueError("The service does not have a control action.")
     
     @abstractmethod
     def _generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
-        """Generates a behavior starting from the given state for the given time window."""
+        """
+        Generates a behavior starting from the given state for the given time window.
+
+        Args:
+            state (np.ndarray): The initial state.
+            N (int): The time window.
+            t (float, optional): The initial time. Defaults to 0.0.
+
+        Returns:
+            Behavior: The generated behavior.
+        """
         pass
     
     def generateBehavior(self, state: np.ndarray, N: int, t: float = 0.0) -> Behavior:
-        """Generates a behavior for the given state."""
-        return self._generateBehavior(state, N, t)
+        """
+        Generates a behavior for the given state.
 
+        Args:
+            state (np.ndarray): The initial state.
+            N (int): The time window.
+            t (float, optional): The initial time. Defaults to 0.0.
+
+        Returns:
+            Behavior: The generated behavior.
+        """
+        return self._generateBehavior(state, N, t)
+    
+    
 class BehaviorSet: #{{pi(x_k|x_k-1)}_0:N}_1:S
     """A set of behaviors that provide a set of state conditional probability distributions to the crowdsourcing algorithm."""
     def __init__(self, ss: StateSpace, N: int):
