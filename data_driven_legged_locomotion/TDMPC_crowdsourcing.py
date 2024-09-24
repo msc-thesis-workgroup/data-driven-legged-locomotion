@@ -173,12 +173,12 @@ def get_control_without_crowdsourcing(env):
 
 		state = x.copy()
 		if index == 0:
-			state[0] += 0.003
+			state[0] += DELTA_STEP
 		elif index == 1:
-			state[0] += 0.003/np.sqrt(2)
-			state[1] += 0.003/np.sqrt(2)
+			state[0] += DELTA_STEP/np.sqrt(2)
+			state[1] += DELTA_STEP/np.sqrt(2)
 		elif index == 2:
-			state[1] += 0.003
+			state[1] += DELTA_STEP
 		log_row.append(list(state))
 		costs.append(cost(state, 0))
 				
