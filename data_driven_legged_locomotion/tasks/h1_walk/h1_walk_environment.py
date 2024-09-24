@@ -8,7 +8,7 @@ from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vect
 from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment, DiscreteStateSpace
 
 class H1WalkEnvironment(MujocoEnvironment):
-    def __init__(self, ss = None, custom_model = None):
+    def __init__(self, ss = None, custom_model = None, starting_pos = None):
         if custom_model is None:
             model = self._get_model_path()
         else:
@@ -16,6 +16,8 @@ class H1WalkEnvironment(MujocoEnvironment):
         if ss is None:
             ss = StateSpace(26+25)
         super().__init__(ss, model)
+        if starting_pos is not None:
+            self.data.qpos[:2] = starting_pos
         
     def _get_model_path(self):
         base_path = pathlib.Path(__file__).parent.parent.parent.parent
@@ -58,22 +60,22 @@ class H1WalkEnvironmentDiscrete(H1WalkEnvironment):
         super().__init__(ss)
         
 class H1WalkMapEnvironment(H1WalkEnvironment):
-    def __init__(self, map: Map):
+    def __init__(self, map: Map, starting_pos = None):
         self.map = map
         model_spec = mujoco.MjSpec()
         model_spec.from_file(str(self._get_model_path()))
         map.add_to_spec(model_spec)
         model = model_spec.compile()
-        self.trigger = False
-        super().__init__(custom_model=model)
+        self.is_triggered = False
+        super().__init__(custom_model=model, starting_pos=starting_pos)
     
     def update_dynamic_obs(self):
-        if not self.trigger:
+        if not self.is_triggered:
             return
         self.map.step(self.model, self.timestep)
     
     def trigger(self):
-        self.trigger = True
+        self.is_triggered = True
     
     def step(self, u: np.ndarray|float):
         MujocoEnvironment.step(self, u)
