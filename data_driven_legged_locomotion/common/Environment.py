@@ -76,3 +76,9 @@ class MujocoEnvironment:
             raise ValueError(f"Action dimension {u.shape} does not match model dimension {self.n_actions}")
         self.data.ctrl = u
         mujoco.mj_step(self.model, self.data)
+    
+    def reset(self):
+        mujoco.mj_reset(self.model, self.data)
+        
+    def launch_passive_viewer(self):
+        return mujoco.viewer.launch_passive(self.model, self.data)
