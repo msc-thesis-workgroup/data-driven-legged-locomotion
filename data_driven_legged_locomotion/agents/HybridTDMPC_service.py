@@ -51,18 +51,16 @@ class H1Controller:
         m = model
 
         # In the H1 robot model the first 7 elements of qpos are the base position and orientation. The rest of the elements are the joint positions.
-        actuator_length = data.qpos[7:len(data.qpos)]
+        actuator_length = d.qpos[7:len(d.qpos)]
         #assert len(actuator_length) == len(desired_q_pos)
         error = desired_q_pos - actuator_length
-        m = model
-        d = data
 
         empty_array = np.zeros(m.actuator_dyntype.shape)
 
         ctrl_dot = np.zeros(m.actuator_dyntype.shape) if np.array_equal(m.actuator_dyntype,empty_array) else d.act_dot[m.actuator_actadr + m.actuator_actnum - 1]
 
         # In the H1 robot model the first 6 elements of qvel are the base velocity (linear + angular). The rest of the elements are the joint velocities.
-        error_dot = ctrl_dot - data.qvel[6:len(data.qvel)]
+        error_dot = ctrl_dot - d.qvel[6:len(d.qvel)]
         #assert len(error_dot) == len(error)
 
         joint_torques = self.kp*error + self.kd*error_dot
