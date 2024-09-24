@@ -38,14 +38,14 @@ class H1Controller:
         return (action + 1) / 2 * (self.action_high - self.action_low) + self.action_low
 
     
-    def compute_joint_torques(self,data: mujoco.MjData, model: mujoco.MjModel, desired_q_pos: np.array) -> np.array:
+    def compute_joint_torques(self,data: mujoco.MjData, model: mujoco.MjModel, desired_q_pos: np.ndarray) -> np.ndarray:
         """Computes the joint torques given the desired joint positions.
             Args:
                 data (mujoco.MjData): The mujoco data object.
                 model (mujoco.MjModel): The mujoco model object.
-                desired_q_pos (np.array): The desired joint positions.
+                desired_q_pos (np.ndarray): The desired joint positions.
             Returns:
-                np.array: The joint torques.
+                np.ndarray: The joint torques.
         """
         d = data
         m = model
@@ -146,56 +146,14 @@ class HybridTDMPCService(MujocoService):
         self.transformation_quat = target_quat * policy_reference.inverse
 
     # Override
-    def _policy(self, x: np.array, t: float = 0.0) -> np.array:
+    def _policy(self, x: np.ndarray, t: float = 0.0) -> np.ndarray:
         """Returns the action given the state."""
+        # Instead of implementing the policy method, which returns the action given the state, the _get_next_state method is overridden to implement the policy.
         raise NotImplementedError("The policy method must be implemented.")
     
     # Override
     def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
         """Returns the next state given the state and time."""
-        
-        # Make a copy of the state to avoid modifying the original state
-        state = copy.deepcopy(state)
-
-        transformation_rot = R.from_quat(self.transformation_quat.inverse.q, scalar_first=True) # Inverse of the transformation quaternion. Transformation quaternion is from the reference orientation to the target orientation, that corresponds to negative rotation.
-        angle = transformation_rot.as_euler('zyx')[0]
-        angle = angle % (2*np.pi) # Normalize the angle to the range [0, 2*pi]
-
-        # Update the position of the robot according to the direction of the movement
-        state[0] += self.delta_step*np.cos(angle)
-        state[1] += self.delta_step*np.sin(angle)
-
-        #print("[DEBUG] angle", angle,"increment (dx,dy):", self.delta_step*np.cos(angle), self.delta_step*np.sin(angle))
-        return state 
-    
-    def get_control(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
-        """Returns the control input given the state and time."""
-
-        x = copy.deepcopy(state)
-        # Set the base position to the origin (0,0), so to allow the agent to move in any direction without incoherence.
-        x[0] = 0.0
-        x[1] = 0.0
-
-        x = self._generalize_walk_direction(x).numpy()
-            
-        x_tdmpc = self._convert_state_to_TDMPC_state(x)
-        x_tdmpc = torch.tensor(x_tdmpc, dtype=torch.float32)
-        action = self.agent.act(x_tdmpc, t0=self.t == 0, task=None)
-        self.t += 1
-        action = action.detach().numpy()
-        action = np.concatenate([action, np.zeros(8)])
-
-        desired_joint_pos = self.controller.unnorm_action(action)
-        # Make sure the last 8 elements are zeros
-        desired_joint_pos[-8:] = np.zeros(8)
-        # Compute the joint torques from the desired joint positions
-        u = self.controller.compute_joint_torques(data=self.data, model=self.model, desired_q_pos=desired_joint_pos)
-        return u
-
-        
-    def get_control_trajectory(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
-        """Returns the control trajectory given the state and time by applying a roll-out strategy."""
-        
         x = copy.deepcopy(state)
         #data_copy = copy.deepcopy(self.data)
         data_copy = self.data
@@ -236,17 +194,58 @@ class HybridTDMPCService(MujocoService):
         self.data.qvel = copy.deepcopy(state[self.model.nq:])
         self.data.time = t
         self.data.ctrl = u.copy()
-        return self.control_trajectory
+        #return self.control_trajectory
+        return next_state
 
-    def _convert_state_to_TDMPC_state(self, x: np.array) -> np.array:
+    def _get_next_state_simple_model(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        # Make a copy of the state to avoid modifying the original state
+        state = copy.deepcopy(state)
+
+        transformation_rot = R.from_quat(self.transformation_quat.inverse.q, scalar_first=True) # Inverse of the transformation quaternion. Transformation quaternion is from the reference orientation to the target orientation, that corresponds to negative rotation.
+        angle = transformation_rot.as_euler('zyx')[0]
+        angle = angle % (2*np.pi) # Normalize the angle to the range [0, 2*pi]
+
+        # Update the position of the robot according to the direction of the movement
+        state[0] += self.delta_step*np.cos(angle)
+        state[1] += self.delta_step*np.sin(angle)
+
+        #print("[DEBUG] angle", angle,"increment (dx,dy):", self.delta_step*np.cos(angle), self.delta_step*np.sin(angle))
+        return state 
+    
+
+    def get_control(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """Returns the control input given the state and time."""
+
+        x = copy.deepcopy(state)
+        # Set the base position to the origin (0,0), so to allow the agent to move in any direction without incoherence.
+        x[0] = 0.0
+        x[1] = 0.0
+
+        x = self._generalize_walk_direction(x).numpy()
+            
+        x_tdmpc = self._convert_state_to_TDMPC_state(x)
+        x_tdmpc = torch.tensor(x_tdmpc, dtype=torch.float32)
+        action = self.agent.act(x_tdmpc, t0=self.t == 0, task=None)
+        self.t += 1
+        action = action.detach().numpy()
+        action = np.concatenate([action, np.zeros(8)])
+
+        desired_joint_pos = self.controller.unnorm_action(action)
+        # Make sure the last 8 elements are zeros
+        desired_joint_pos[-8:] = np.zeros(8)
+        # Compute the joint torques from the desired joint positions
+        u = self.controller.compute_joint_torques(data=self.data, model=self.model, desired_q_pos=desired_joint_pos)
+        return u
+
+    def _convert_state_to_TDMPC_state(self, x: np.ndarray) -> np.ndarray:
         """ Converts the state to the state that the TD-MPC2 agent can understand.
             In particular, in the hybrid architecture, the agent sees only a subset of the state:
             - The first 18 elements of the state: which correspond to the base position and orientation, and the joint positions of the lower body (torso included).
             - The elements from 26 to 43: which correspond to the base velocity (linear + angular), and the joint velocities of the lower body (torso included).
             Args:
-                x (np.array): The state of the environment.
+                x (np.ndarray): The state of the environment.
             Returns:
-                np.array: The state that the TD-MPC2 agent can understand.
+                np.ndarray: The state that the TD-MPC2 agent can understand.
         """
         x_tdmpc = np.concatenate([x[0:18], x[26:43]]) # x_tdmpc = [x[0:18], x[26:43]] [x[0:26-8], x[26:51-8]]
         #print("x_tdmpc: ", x_tdmpc, "len(x_tdmpc): ", len(x_tdmpc))
@@ -277,13 +276,13 @@ class HybridTDMPCService(MujocoService):
         self.agent.load(agent_path)
         print("Loaded agent from: ", agent_path)
         
-    def _generalize_walk_direction(self,obs: np.array)-> np.array:
+    def _generalize_walk_direction(self,obs: np.ndarray)-> np.ndarray:
         """This private method generalizes the direction of the walk. It rotates the state by the transformation quaternion.
             So the agent can move in any direction. The transformation quaternion is calculated as the product of the target quaternion and the policy quaternion.
             Args:
-                obs (np.array): The state of the environment.
+                obs (np.ndarray): The state of the environment.
             Returns:
-                np.array: The "generalized" state of the environment. That is, the state of the environment after the rotation by the transformation quaternion.
+                np.ndarray: The "generalized" state of the environment. That is, the state of the environment after the rotation by the transformation quaternion.
                 
         """        
 

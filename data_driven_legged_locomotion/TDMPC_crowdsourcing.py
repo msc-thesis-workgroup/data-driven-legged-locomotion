@@ -75,8 +75,8 @@ renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolu
 variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
-AGENT_HORIZON = 1
-N_SAMPLES = 500
+AGENT_HORIZON = 50
+N_SAMPLES = 100
 DELTA_STEP = 0.003
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 services.addService(hybrid_service)
@@ -98,8 +98,31 @@ logger.log(logging.INFO, log_header)
 log_row = []
 
 
+def get_control(env: H1WalkEnvironment) -> np.ndarray:
+	x = env.get_state()
+	log_row.append(list(x))
 
-def get_control(env):
+	# Update the data for the services
+	for index,service in enumerate(services.services):
+		service.set_data(env.data)
+
+	crowdsourcing.initialize(x, time=env.time)
+	for i in range(len(services.services)):
+		next_state = crowdsourcing._behaviors.behaviors[i].getAtTime(0).pf.mean
+		log_row.append(list(next_state))
+	service_list, behavior = crowdsourcing.run()
+	service_index = service_list[0]
+	print(f"[DEBUG] Service index: {service_index}")
+	log_row.append(service_index)
+
+	agent_copy = services.services[service_index].get_agent_copy()
+	for index,service in enumerate(services.services):
+		if index != service_index:
+			service.set_agent_copy(agent_copy)
+
+	return services.services[service_index].control_trajectory[0]
+
+def get_control_simple_model(env: H1WalkEnvironment) -> np.ndarray:
 
 	x = env.get_state().copy()
 	log_row.append(list(x))
@@ -184,7 +207,7 @@ def get_control_without_crowdsourcing(env):
 	
 	return u_traj[-1] # the trajectory is made by only one element. TODO REFACTOR THIS TO BE MORE CLEAR
 
-def get_next_state(env):
+def get_next_state(env: H1WalkEnvironment) -> np.ndarray:
 	x = env.get_state()
 	#log_row.append(list(x))
 
