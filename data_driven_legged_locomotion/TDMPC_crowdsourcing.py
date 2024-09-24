@@ -71,7 +71,7 @@ if not video_path.parent.exists():
 		video_path.parent.mkdir()
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
-# Defining Services
+# Defining Services and its parameters
 variances = np.ones(ss.n_states) * 0.000001
 
 FRAME_SKIP = 1
@@ -151,62 +151,6 @@ def get_control_simple_model(env: H1WalkEnvironment) -> np.ndarray:
 	return u
 
 
-first_time = True
-old_agent_index = None
-service_index = None
-def get_control_without_crowdsourcing(env):
-	global first_time
-	global old_agent_index
-	global service_index
-
-	x = env.get_state()
-	log_row.append(list(x))
-
-	# Update the data for the services
-	for index,service in enumerate(services.services):
-		#print("index",index ,"id: ", id(service))
-		service.set_data(env.data)
-
-	# Sol TESTING ONLY
-	costs = []
-	for index,service in enumerate(services.services):
-
-		state = x.copy()
-		if index == 0:
-			state[0] += DELTA_STEP
-		elif index == 1:
-			state[0] += DELTA_STEP/np.sqrt(2)
-			state[1] += DELTA_STEP/np.sqrt(2)
-		elif index == 2:
-			state[1] += DELTA_STEP
-		log_row.append(list(state))
-		costs.append(cost(state, 0))
-				
-	service_index = np.argmin(costs)
-	
-	print(f"[DEBUG] Service index: {service_index}")
-	log_row.append(service_index)
-
-
-	# Cheating block
-	if not first_time and old_agent_index != service_index:
-		agent = services.services[old_agent_index].get_agent_copy()
-		services.services[service_index].set_agent_copy(agent)
-
-		#env.data.qvel[3:6] = env.data.qvel[3:6] * 0.5
-		env.data.qvel[0:3] = env.data.qvel[0:3] * 0.33
-		services.services[service_index].set_data(env.data)
-
-	if first_time:
-		first_time = False
-
-	old_agent_index = service_index
-
-	winner_service = services.services[service_index]
-	u_traj = winner_service.get_control_trajectory(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
-	
-	return u_traj[-1] # the trajectory is made by only one element. TODO REFACTOR THIS TO BE MORE CLEAR
-
 def get_next_state(env: H1WalkEnvironment) -> np.ndarray:
 	x = env.get_state()
 	#log_row.append(list(x))
@@ -224,14 +168,6 @@ def get_next_state(env: H1WalkEnvironment) -> np.ndarray:
 	print(f"[DEBUG] Service index: {service_index}")
 	#log_row.append(service_index)
 
-	#u = services.services[service_index].last_u
-	#return u
-
-	# agent = services.services[service_index].get_agent_copy()
-	# for index,service in enumerate(services.services):
-	# 	if index != service_index:
-	# 		service.set_agent_copy(agent)
-
 	desired_state = crowdsourcing._behaviors.behaviors[service_index].getAtTime(0).pf.mean
 	return desired_state
 
@@ -248,9 +184,7 @@ with env.launch_passive_viewer() as viewer:
 			# Step the simulation forward.
 			
 			# Sol 1
-			temp = old_agent_index
 			u = get_control(env)
-			#u = get_control_without_crowdsourcing(env)
 			log_row.append(list(u))
 			env.step(u)
 
@@ -266,7 +200,7 @@ with env.launch_passive_viewer() as viewer:
 			# Log the data
 			logger.log(logging.DEBUG, log_row)
 
-			# Sol 2
+			# Sol 2 (crowdsourcing with low level controller by dynamic inversion) 
 			# x_state = get_next_state(env)
 			# frame_count = env.reach_state(x_state, FRAME_SKIP*AGENT_HORIZON, viewer, video, renderer, frame_count, video_fps)
 			# env.data.qfrc_applied = np.zeros_like(env.data.qfrc_applied)
