@@ -8,7 +8,22 @@ from data_driven_legged_locomotion.common import MujocoService, StateSpace, Offl
 
 class MujocoMPCService(MujocoService):
     """A service that uses a deterministic Mujoco MPC agent to generate behaviors."""
+    
     def __init__(self, ss: StateSpace, model, variances: float = None, direction: np.ndarray = np.array([1.0, 0.0]), policy_sampling_time: float = 0.02, env = None):
+        """
+        Initializes the MujocoMPCService class.
+
+        Args:
+            ss (StateSpace): The state space.
+            model: The Mujoco model.
+            variances (float, optional): The variances for the state space. Defaults to None.
+            direction (np.ndarray, optional): The direction vector. Defaults to np.array([1.0, 0.0]).
+            policy_sampling_time (float, optional): The policy sampling time. Defaults to 0.02.
+            env (optional): The environment. Defaults to None.
+
+        Raises:
+            ValueError: If the agent_server binary cannot be found.
+        """
         # We disable zero-order hold as we want the agent to interpolate the control action between the policy sampling time
         super().__init__(ss, model, variances, enable_zoh=False, policy_sampling_time=policy_sampling_time)
         # Find the agent_server binary
@@ -41,16 +56,32 @@ class MujocoMPCService(MujocoService):
         self._sync_env_state()
     
     def _update_mocap_pos(self):
+        """
+        Updates the mocap position based on the current position and direction.
+        """
         current_pos = self.data.qpos[:3]
         delta_pos = np.concatenate([self.direction, np.zeros(1)])
         self.data.mocap_pos[0] = current_pos + delta_pos
     
     def _sync_env_state(self):
+        """
+        Synchronizes the environment state with the current state.
+        """
         self.data.time = self.env.data.time
         self.data.act = self.env.data.act
         self.data.userdata = self.env.data.userdata
     
     def _policy(self, x: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """
+        Computes the policy action based on the current state and time.
+
+        Args:
+            x (np.ndarray): The current state.
+            t (float, optional): The current time. Defaults to 0.0.
+
+        Returns:
+            np.ndarray: The computed policy action.
+        """
         self._update_mocap_pos()
         self._sync_env_state()
         self.agent.set_state(
@@ -76,6 +107,14 @@ class MujocoMPCServiceV2(MujocoMPCService):
     """This class is a variant of MujocoMPCService that uses the last state of the best trajectory as the next state for
     better distringuishing the services in the crowdsourcing algorithm."""
     def _get_next_state(self, state: np.ndarray, t: float = 0.0) -> np.ndarray:
+        """
+        Compute the next state of the system given the current state and time.
+        Args:
+            state (np.ndarray): The current state of the system, including positions and velocities.
+            t (float, optional): The current time. Defaults to 0.0.
+        Returns:
+            np.ndarray: The next state of the system.
+        """
         self.data.qpos = state[0:self.model.nq]
         self.data.qvel = state[self.model.nq:]
         self._last_u = self._policy(state, t)
@@ -94,7 +133,20 @@ class FNOAR2(NormalStateCondPF):
         self.policy_cov = policy_cov/10000 # This is needed to reduce the number of samples needed for monte carlo, will be removed in the future
     
     def get_mean_cov(self, state: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """State is [[v_fw, v_n, omega], [v_fw_old, v_n_old, omega_old]]"""
+        """
+        Computes the mean and covariance for the given state.
+
+        Parameters:
+        state (np.ndarray): A 2x3 array where the first row represents the current frame 
+                            [v_fw, v_n, omega] and the second row represents the old frame 
+                            [v_fw_old, v_n_old, omega_old].
+
+        Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing the mean vector and the covariance matrix.
+
+        Raises:
+        ValueError: If the shape of the state is not (2, 3).
+        """
         if state.shape != (2,3):
             raise ValueError(f"State shape {state.shape} does not match (2,3)")
         curr_fno = state[0]
@@ -112,7 +164,15 @@ class OfflineAR2Service(OfflineReaderService):
         super().__init__(ss, file_path)
         
     def _readBehavior(self, file_path: str) -> Behavior:
-        """Reads a behavior from a file."""
+        """
+        Reads a behavior from a file.
+
+        Args:
+            file_path (str): The path to the file containing the behavior data.
+
+        Returns:
+            Behavior: An instance of the Behavior class containing the loaded behavior data.
+        """
         models = pickle.load(open(file_path, "rb"))
         self.model_timestep = models['timestep']
         self.cond_pf = FNOAR2(self.ss, models['models'][self.policy_name]['coeffs'], models['models'][self.policy_name]['cov'])
