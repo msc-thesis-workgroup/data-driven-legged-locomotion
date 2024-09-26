@@ -8,6 +8,8 @@ import scipy
 from data_driven_legged_locomotion.utils.mujoco_spec import attach_spec
 from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vector
 
+COST_HIGH = 100.0
+
 class Obstacle(ABC):
     def __init__(self):
         """
@@ -124,14 +126,20 @@ class Wall(Obstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.10
+        bump_radius = 0.5 + self.width / 2
         dist_on_line = np.dot(pos - self.start_pos, self.versor)
         dist_from_line = np.abs(np.dot(pos - self.start_pos, self.normal))
-        if dist_on_line < 0 - bump_radius or dist_on_line > self.length + bump_radius:
-            return 0.0
-        if dist_from_line > self.width / 2 + bump_radius:
-            return 0.0
-        return 1000.0
+        if dist_on_line > 0 and dist_on_line < self.length and dist_from_line < self.width / 2:
+            return COST_HIGH
+        if dist_on_line < 0:
+            distance_from_segment = np.linalg.norm(pos - self.start_pos)
+        elif dist_on_line > self.length:
+            distance_from_segment = np.linalg.norm(pos - self.end_pos)
+        else:
+            distance_from_segment = dist_from_line
+        if distance_from_segment < bump_radius:
+            return COST_HIGH * (1.0 - distance_from_segment/bump_radius)
+        return 0.0
         
     
     def add_to_spec(self, model_spec: dict):
@@ -210,6 +218,7 @@ class Table(MeshObstacle):
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "table" / "table.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'table'
+        self.radius = 1.0
 
     def cost(self, pos: np.ndarray) -> float:
         """
@@ -221,7 +230,13 @@ class Table(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        return 30 * scipy.stats.multivariate_normal.pdf(pos, mean=self.pos, cov=0.4 * np.eye(2))
+        bump_radius = 1.0
+        r = np.linalg.norm(pos - self.pos)
+        if r < self.radius:
+            return COST_HIGH
+        elif r < self.radius + bump_radius:
+            return COST_HIGH * (1.0 - (r - self.radius) / bump_radius)
+        return 0.0
 
 class Lamp(MeshObstacle):
     def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
@@ -247,19 +262,23 @@ class Lamp(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        if np.linalg.norm(pos - self.pos) > self.radius:
-            return 0.0
-        return 1000.0
+        bump_radius = 0.5
+        r = np.linalg.norm(pos - self.pos)
+        if r < self.radius:
+            return COST_HIGH
+        elif r < self.radius + bump_radius:
+            return COST_HIGH * (1.0 - (r - self.radius) / bump_radius)
+        return 0.0
 
 class Shelf(MeshObstacle):
-    def __init__(self, pos: np.ndarray):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
         """
         Initializes the Shelf class.
 
         Args:
             pos (np.ndarray): The position of the shelf.
         """
-        super().__init__(pos)
+        super().__init__(pos, quat=quat)
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "shelf" / "shelf.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'shelf'
@@ -276,27 +295,32 @@ class Shelf(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.10
+        bump_radius = 0.5 + self.width / 2
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
-        normal = np.array([-versor[1], versor[0]])
+        normal = -np.array([-versor[1], versor[0]])
         dist_on_line = np.abs(np.dot(pos - self.pos, versor))
         dist_from_line = np.dot(pos - self.pos, normal)
-        if dist_on_line > self.length  / 2:
-            return 0.0
-        if dist_from_line > 0 or dist_from_line < -self.width:
-            return 0.0
-        return 1000.0
+        center = self.pos + self.width / 2 * normal
+        if dist_on_line < self.length / 2 and dist_from_line > 0 and dist_from_line < self.width:
+            return COST_HIGH
+        if dist_on_line > self.length / 2:
+            distance_from_segment = min(np.linalg.norm(pos - center - self.length / 2 * versor), np.linalg.norm(pos - center + self.length / 2 * versor))
+        else:
+            distance_from_segment = np.abs(np.dot(pos - center, normal))
+        if distance_from_segment < bump_radius:
+            return COST_HIGH * (1.0 - distance_from_segment/bump_radius)
+        return 0.0
     
 class TV(MeshObstacle):
-    def __init__(self, pos: np.ndarray):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
         """
         Initializes the TV class.
 
         Args:
             pos (np.ndarray): The position of the tv.
         """
-        super().__init__(pos)
+        super().__init__(pos, quat=quat)
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "tv" / "tv.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'tv'
@@ -313,27 +337,32 @@ class TV(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.10
+        bump_radius = 0.5 + self.width / 2
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
         dist_on_line = np.abs(np.dot(pos - self.pos, versor))
         dist_from_line = np.dot(pos - self.pos, normal)
-        if dist_on_line > self.length  / 2:
-            return 0.0
-        if dist_from_line > 0 or dist_from_line < -self.width:
-            return 0.0
-        return 1000.0
+        center = self.pos + self.width / 2 * normal
+        if dist_on_line < self.length / 2 and dist_from_line > 0 and dist_from_line < self.width:
+            return COST_HIGH
+        if dist_on_line > self.length / 2:
+            distance_from_segment = min(np.linalg.norm(pos - center - self.length / 2 * versor), np.linalg.norm(pos - center + self.length / 2 * versor))
+        else:
+            distance_from_segment = np.abs(np.dot(pos - center, normal))
+        if distance_from_segment < bump_radius:
+            return COST_HIGH * (1.0 - distance_from_segment/bump_radius)
+        return 0.0
     
 class Bookshelf(MeshObstacle):
-    def __init__(self, pos: np.ndarray):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
         """
         Initializes the Bookshelf class.
 
         Args:
             pos (np.ndarray): The position of the tv.
         """
-        super().__init__(pos)
+        super().__init__(pos, quat=quat)
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "bookshelf" / "bookshelf.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'bookshelf'
@@ -350,27 +379,32 @@ class Bookshelf(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.10
+        bump_radius = 0.5 + self.width / 2
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
         dist_on_line = np.abs(np.dot(pos - self.pos, versor))
         dist_from_line = np.dot(pos - self.pos, normal)
-        if dist_on_line > self.length  / 2:
-            return 0.0
-        if dist_from_line > self.width or dist_from_line < 0:
-            return 0.0
-        return 1000.0
+        center = self.pos + self.width / 2 * normal
+        if dist_on_line < self.length / 2 and dist_from_line > 0 and dist_from_line < self.width:
+            return COST_HIGH
+        if dist_on_line > self.length / 2:
+            distance_from_segment = min(np.linalg.norm(pos - center - self.length / 2 * versor), np.linalg.norm(pos - center + self.length / 2 * versor))
+        else:
+            distance_from_segment = np.abs(np.dot(pos - center, normal))
+        if distance_from_segment < bump_radius:
+            return COST_HIGH * (1.0 - distance_from_segment/bump_radius)
+        return 0.0
     
 class Couch(MeshObstacle):
-    def __init__(self, pos: np.ndarray):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
         """
         Initializes the Couch class.
 
         Args:
             pos (np.ndarray): The position of the couch.
         """
-        super().__init__(pos)
+        super().__init__(pos, quat=quat)
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "couch" / "couch.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'couch'
@@ -387,17 +421,21 @@ class Couch(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.10
+        bump_radius = 0.5 + self.width / 2
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
         dist_on_line = np.abs(np.dot(pos - self.pos, versor))
         dist_from_line = np.abs(np.dot(pos - self.pos, normal))
-        if dist_on_line > self.length  / 2:
-            return 0.0
-        if dist_from_line > self.width / 2:
-            return 0.0
-        return 1000.0
+        if dist_on_line < self.length / 2 and dist_from_line < self.width / 2:
+            return COST_HIGH
+        if dist_on_line > self.length / 2:
+            distance_from_segment = min(np.linalg.norm(pos - self.pos - self.length / 2 * versor), np.linalg.norm(pos - self.pos + self.length / 2 * versor))
+        else:
+            distance_from_segment = dist_from_line
+        if distance_from_segment < bump_radius:
+            return COST_HIGH * (1.0 - distance_from_segment/bump_radius)
+        return 0.0
 
 class Door(DynamicMeshObstacle):
     def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0]), shift_yaw: float = 0.0):
@@ -408,6 +446,7 @@ class Door(DynamicMeshObstacle):
             pos (np.ndarray): The position of the shelf.
         """
         super().__init__(pos, quat)
+        self.yaw += np.pi # Accounts for the mesh orientation
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "door" / "door.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'door'
@@ -436,7 +475,7 @@ class Door(DynamicMeshObstacle):
             return 0.0
         if dist_from_line > self.width / 2 + bump_radius:
             return 0.0
-        return 1000.0
+        return COST_HIGH
     
     def step(self, model: mujoco.MjModel, delta_t: float):
         """
