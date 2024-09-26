@@ -29,8 +29,12 @@ class GlobalPlanner:
         ax = fig_grad.add_subplot()
         ax.quiver(X, Y, -grad[1], -grad[0], angles='xy')
         ax.plot(path[:,0], path[:,1], 'r')
+        fig_heatmap = plt.figure()
+        ax = fig_heatmap.add_subplot()
+        ax.imshow(Z, extent=[-1, 11, -1, 11], origin='lower')
+        ax.plot(path[:,0], path[:,1], 'r')
         plt.show()
-        return fig_3d, fig_grad
+        return fig_3d, fig_grad, fig_heatmap
     
     def get_path(self, n_bins = 100):
         """Gets a path from starting_point to goal_point using A*"""
