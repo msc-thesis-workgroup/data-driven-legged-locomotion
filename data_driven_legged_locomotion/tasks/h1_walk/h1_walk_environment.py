@@ -8,7 +8,7 @@ from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vect
 from data_driven_legged_locomotion.common import StateSpace, MujocoEnvironment, DiscreteStateSpace
 
 class H1WalkEnvironment(MujocoEnvironment):
-    def __init__(self, ss=None, custom_model=None, starting_pos=None):
+    def __init__(self, ss=None, custom_model=None, starting_pos=None, starting_quat=None):
         """
         Initializes the H1WalkEnvironment class.
 
@@ -26,6 +26,8 @@ class H1WalkEnvironment(MujocoEnvironment):
         super().__init__(ss, model)
         if starting_pos is not None:
             self.data.qpos[:2] = starting_pos
+        if starting_quat is not None:
+            self.data.qpos[3:7] = starting_quat
     
     @staticmethod
     def _get_model_path():
@@ -95,7 +97,7 @@ class H1WalkEnvironmentDiscrete(H1WalkEnvironment):
         super().__init__(ss)
         
 class H1WalkMapEnvironment(H1WalkEnvironment):
-    def __init__(self, map: Map, starting_pos=None):
+    def __init__(self, map: Map, starting_pos=None, starting_quat=None):
         """
         Initializes the H1WalkMapEnvironment class.
 
@@ -109,7 +111,7 @@ class H1WalkMapEnvironment(H1WalkEnvironment):
         map.add_to_spec(model_spec)
         model = model_spec.compile()
         self.is_triggered = False
-        super().__init__(custom_model=model, starting_pos=starting_pos)
+        super().__init__(custom_model=model, starting_pos=starting_pos, starting_quat=starting_quat)
     
     def update_dynamic_obs(self):
         """
