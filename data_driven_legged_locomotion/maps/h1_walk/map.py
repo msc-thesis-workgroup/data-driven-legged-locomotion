@@ -223,6 +223,34 @@ class Table(MeshObstacle):
         """
         return 30 * scipy.stats.multivariate_normal.pdf(pos, mean=self.pos, cov=0.4 * np.eye(2))
 
+class Lamp(MeshObstacle):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
+        """
+        Initializes the Lamp class.
+
+        Args:
+            pos (np.ndarray): The position of the lamp.
+        """
+        super().__init__(pos, quat)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "lamp" / "lamp.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'lamp'
+        self.radius = 0.5
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        if np.linalg.norm(pos - self.pos) > self.radius:
+            return 0.0
+        return 1000.0
+
 class Shelf(MeshObstacle):
     def __init__(self, pos: np.ndarray):
         """
@@ -235,6 +263,8 @@ class Shelf(MeshObstacle):
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "shelf" / "shelf.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'shelf'
+        self.width = 0.61
+        self.length = 1.22
 
     def cost(self, pos: np.ndarray) -> float:
         """
@@ -246,7 +276,17 @@ class Shelf(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        return 30 * scipy.stats.multivariate_normal.pdf(pos, mean=self.pos, cov=0.4 * np.eye(2))
+        bump_radius = 0.10
+        current_yaw = self.yaw
+        versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
+        normal = np.array([-versor[1], versor[0]])
+        dist_on_line = np.abs(np.dot(pos - self.pos, versor))
+        dist_from_line = np.dot(pos - self.pos, normal)
+        if dist_on_line > self.length  / 2:
+            return 0.0
+        if dist_from_line > 0 or dist_from_line < -self.width:
+            return 0.0
+        return 1000.0
 
 class Door(DynamicMeshObstacle):
     def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0]), shift_yaw: float = 0.0):
