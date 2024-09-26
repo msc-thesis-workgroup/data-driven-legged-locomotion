@@ -19,12 +19,14 @@ def attach_spec(dest, source, source_dir, prefix="", body_pos = np.array([0.0, 0
     for material in source.material:
         new_material = dest.add_material()
         new_material.name = prefix + material.name
+        new_material.rgba = material.rgba
         new_material.specular = material.specular
         new_material.shininess = material.shininess
         new_material.metallic = material.metallic
         new_material.roughness = material.roughness
         new_material.specular = material.specular
         new_material.emission = material.emission
+        print(new_material.name, new_material.rgba, new_material.specular, new_material.shininess, new_material.metallic, new_material.roughness, new_material.specular, new_material.emission)
         new_textures = []
         for texture in material.textures:
             if texture != "":
