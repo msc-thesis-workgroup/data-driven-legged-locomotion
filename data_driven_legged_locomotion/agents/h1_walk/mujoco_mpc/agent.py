@@ -5,11 +5,13 @@ import pathlib
 
 from data_driven_legged_locomotion.common import MujocoService, StateSpace, OfflineReaderService, Behavior, NormalStateCondPF, SingleBehavior
 from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vector, rotate_quat
+from data_driven_legged_locomotion.tasks.h1_walk.h1_walk_environment import H1WalkEnvironment
 
 class H1WalkAgent():
     """An agent based on Mujoco MPC that is capable of walking to a target pose."""
     def __init__(self, env):
-        model = env.model
+        model_path = str(H1WalkEnvironment._get_model_path())
+        model = mujoco.MjModel.from_xml_path(model_path)
         # Find the agent_server binary
         base_path = pathlib.Path(__file__).parent.parent.parent.parent.parent
         print("[DEBUG] base_path: ", base_path)
