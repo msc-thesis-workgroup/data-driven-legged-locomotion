@@ -287,6 +287,43 @@ class Shelf(MeshObstacle):
         if dist_from_line > 0 or dist_from_line < -self.width:
             return 0.0
         return 1000.0
+    
+class TV(MeshObstacle):
+    def __init__(self, pos: np.ndarray):
+        """
+        Initializes the TV class.
+
+        Args:
+            pos (np.ndarray): The position of the tv.
+        """
+        super().__init__(pos)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "tv" / "tv.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'tv'
+        self.width = 0.395
+        self.length = 1.47
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        bump_radius = 0.10
+        current_yaw = self.yaw
+        versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
+        normal = np.array([-versor[1], versor[0]])
+        dist_on_line = np.abs(np.dot(pos - self.pos, versor))
+        dist_from_line = np.dot(pos - self.pos, normal)
+        if dist_on_line > self.length  / 2:
+            return 0.0
+        if dist_from_line > 0 or dist_from_line < -self.width:
+            return 0.0
+        return 1000.0
 
 class Door(DynamicMeshObstacle):
     def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0]), shift_yaw: float = 0.0):
