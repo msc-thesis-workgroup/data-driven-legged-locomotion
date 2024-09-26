@@ -12,6 +12,9 @@ class GlobalPlanner:
             self.map = map
         self.start_pos = start_pos
         self.goal_pos = goal_pos
+        
+    def update_start_pos(self, start_pos: np.ndarray):
+        self.start_pos = start_pos
     
     def _cost_func(self, pos: np.ndarray):
         return self.map.cost(pos) + np.linalg.norm(pos - self.goal_pos)
