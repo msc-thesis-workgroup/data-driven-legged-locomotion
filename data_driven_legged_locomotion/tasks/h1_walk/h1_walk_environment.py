@@ -18,7 +18,7 @@ class H1WalkEnvironment(MujocoEnvironment):
             starting_pos (np.ndarray, optional): The starting position. Defaults to None.
         """
         if custom_model is None:
-            model = self._get_model_path()
+            model = H1WalkEnvironment._get_model_path()
         else:
             model = custom_model
         if ss is None:
@@ -26,8 +26,9 @@ class H1WalkEnvironment(MujocoEnvironment):
         super().__init__(ss, model)
         if starting_pos is not None:
             self.data.qpos[:2] = starting_pos
-        
-    def _get_model_path(self):
+    
+    @staticmethod
+    def _get_model_path():
         """
         Finds the model path for the h1_walk task.
 
@@ -104,7 +105,7 @@ class H1WalkMapEnvironment(H1WalkEnvironment):
         """
         self.map = map
         model_spec = mujoco.MjSpec()
-        model_spec.from_file(str(self._get_model_path()))
+        model_spec.from_file(str(H1WalkEnvironment._get_model_path()))
         map.add_to_spec(model_spec)
         model = model_spec.compile()
         self.is_triggered = False
