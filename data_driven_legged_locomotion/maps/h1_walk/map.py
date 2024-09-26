@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 import functools
 import mujoco
 import numpy as np
+import pathlib
 import scipy
+
+from data_driven_legged_locomotion.utils.mujoco_spec import attach_spec
+from data_driven_legged_locomotion.utils.quaternions import quat_to_forward_vector
 
 class Obstacle(ABC):
     def __init__(self):
@@ -51,6 +55,102 @@ class DynamicObstacle(Obstacle):
         """
         raise NotImplementedError("Method not implemented.")
 
+class MeshObstacle(Obstacle):
+    last_id = 0
+    
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
+        super().__init__()
+        self.xml_path = None
+        self.resource_dir = None
+        self.pos = pos
+        self.quat = quat
+        self.yaw = scipy.spatial.transform.Rotation.from_quat(quat,scalar_first=True).as_euler('zyx')[0]
+        self.name = 'mesh_obstacle'
+        self.id = MeshObstacle.last_id
+        MeshObstacle.last_id += 1
+    
+    def add_to_spec(self, model_spec: dict):
+        """
+        Adds the cylinder to the model specification.
+
+        Args:
+            model_spec (dict): The model specification to which the cylinder is added.
+        """
+        spec = mujoco.MjSpec()
+        spec.from_file(str(self.xml_path))
+        attach_spec(model_spec, spec, self.resource_dir, prefix=f"{self.name}_{self.id}_", body_pos=np.append(self.pos, [0.0]), body_quat=self.quat)
+
+class DynamicMeshObstacle(MeshObstacle, DynamicObstacle):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
+        MeshObstacle.__init__(self, pos, quat)
+        DynamicObstacle.__init__(self)
+        
+
+class Wall(Obstacle):
+    last_id = 0
+    
+    def __init__(self, start_pos: np.ndarray, end_pos: np.ndarray, width: float = 0.07, height: float = 1.0):
+        """
+        Initializes the Wall class.
+
+        Args:
+            start_pos (np.ndarray): The starting position of the wall.
+            end_pos (np.ndarray): The ending position of the wall.
+            width (float, optional): The width of the wall. Defaults to 0.2.
+            height (float, optional): The height of the wall. Defaults to 1.0.
+        """
+        super().__init__()
+        self.id = SlidingWall.last_id
+        SlidingWall.last_id += 1
+        self.start_pos = start_pos
+        self.end_pos = end_pos
+        self.width = width
+        self.height = height
+        self.length = np.linalg.norm(end_pos - start_pos)
+        self.yaw = np.arctan2(end_pos[1] - start_pos[1], end_pos[0] - start_pos[0])
+        self.mean_point = (start_pos + end_pos) / 2
+        self.pos = np.zeros(2)  # Position of the center of the obstacle
+        self.versor = (self.end_pos - self.start_pos) / self.length
+        self.normal = np.array([-self.versor[1], self.versor[0]])
+        
+        
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        bump_radius = 0.10
+        dist_on_line = np.dot(pos - self.start_pos, self.versor)
+        dist_from_line = np.abs(np.dot(pos - self.start_pos, self.normal))
+        if dist_on_line < 0 - bump_radius or dist_on_line > self.length + bump_radius:
+            return 0.0
+        if dist_from_line > self.width / 2 + bump_radius:
+            return 0.0
+        return 1000.0
+        
+    
+    def add_to_spec(self, model_spec: dict):
+        """
+        Adds the sliding wall to the model specification.
+
+        Args:
+            model_spec (dict): The model specification to which the sliding wall is added.
+        """
+        body = model_spec.worldbody.add_body()
+        body.name = f"obstacle_wall_{self.id}"
+        body.pos = self.mean_point.tolist() + [self.height]
+        body.quat = scipy.spatial.transform.Rotation.from_euler('z', self.yaw).as_quat(scalar_first=True)
+        geom = body.add_geom()
+        geom.name = f"obstacle_wall_geom_{self.id}"
+        geom.type = mujoco.mjtGeom.mjGEOM_BOX
+        geom.size = [self.length / 2, self.width, self.height]
+        geom.rgba = [197.0/255, 194.0/255, 199.0/255, 1]
+
 class Cylinder(Obstacle):
     last_id = 0
     
@@ -97,6 +197,114 @@ class Cylinder(Obstacle):
         geom.type = mujoco.mjtGeom.mjGEOM_CYLINDER
         geom.size = [self.radius, self.radius, self.height]
         geom.rgba = [1, 0, 0, 1]
+        
+class Table(MeshObstacle):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
+        """
+        Initializes the Table class.
+
+        Args:
+            pos (np.ndarray): The position of the table.
+        """
+        super().__init__(pos, quat)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "table" / "table.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'table'
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        return 30 * scipy.stats.multivariate_normal.pdf(pos, mean=self.pos, cov=0.4 * np.eye(2))
+
+class Shelf(MeshObstacle):
+    def __init__(self, pos: np.ndarray):
+        """
+        Initializes the Shelf class.
+
+        Args:
+            pos (np.ndarray): The position of the shelf.
+        """
+        super().__init__(pos)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "shelf" / "shelf.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'shelf'
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        return 30 * scipy.stats.multivariate_normal.pdf(pos, mean=self.pos, cov=0.4 * np.eye(2))
+
+class Door(DynamicMeshObstacle):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0]), shift_yaw: float = 0.0):
+        """
+        Initializes the Door class.
+
+        Args:
+            pos (np.ndarray): The position of the shelf.
+        """
+        super().__init__(pos, quat)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "door" / "door.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'door'
+        self.shift_yaw = shift_yaw # The amount by which the door is rotated after a transition
+        self.rotated_yaw = 0.0 # The current rotation of the door with respect to the initial position
+        self.length = 0.871
+        self.width = 0.11
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        bump_radius = 0.10
+        current_yaw = self.yaw + self.rotated_yaw
+        versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
+        normal = np.array([-versor[1], versor[0]])
+        dist_on_line = np.dot(pos - self.pos, versor)
+        dist_from_line = np.abs(np.dot(pos - self.pos, normal))
+        if dist_on_line < 0 - bump_radius or dist_on_line > self.length + bump_radius:
+            return 0.0
+        if dist_from_line > self.width / 2 + bump_radius:
+            return 0.0
+        return 1000.0
+    
+    def step(self, model: mujoco.MjModel, delta_t: float):
+        """
+        Advances the door's state by a given time step.
+
+        Args:
+            model (mujoco.MjModel): The MuJoCo model.
+            delta_t (float): The time step by which to advance the door's state.
+        """
+        if self.transition_end:
+            return
+        if np.abs(self.rotated_yaw) > np.abs(self.shift_yaw):
+            self.transition_end = True
+            return
+        direction = np.sign(self.shift_yaw)
+        self.rotated_yaw += direction * delta_t * 1.0
+        body = model.body(f"{self.name}_{self.id}_door")
+        body.quat = scipy.spatial.transform.Rotation.from_euler('z', self.yaw + self.rotated_yaw).as_quat(scalar_first=True)
+    
 
 class SlidingWall(DynamicObstacle):
     last_id = 0
