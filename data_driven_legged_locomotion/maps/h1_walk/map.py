@@ -446,13 +446,12 @@ class Door(DynamicMeshObstacle):
             pos (np.ndarray): The position of the shelf.
         """
         super().__init__(pos, quat)
-        self.yaw += np.pi # Accounts for the mesh orientation
         self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "door" / "door.xml"
         self.resource_dir = self.xml_path.parent
         self.name = 'door'
         self.shift_yaw = shift_yaw # The amount by which the door is rotated after a transition
         self.rotated_yaw = 0.0 # The current rotation of the door with respect to the initial position
-        self.length = 0.871
+        self.length = 1.0
         self.width = 0.11
 
     def cost(self, pos: np.ndarray) -> float:
@@ -466,7 +465,7 @@ class Door(DynamicMeshObstacle):
             float: The computed cost.
         """
         bump_radius = 0.10
-        current_yaw = self.yaw + self.rotated_yaw
+        current_yaw = self.yaw + self.rotated_yaw + np.pi # Accounts for the mesh orientation
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
         dist_on_line = np.dot(pos - self.pos, versor)
