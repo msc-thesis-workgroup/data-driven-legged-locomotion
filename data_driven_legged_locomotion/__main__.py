@@ -13,10 +13,11 @@ from data_driven_legged_locomotion.agents.h1_walk.mujoco_mpc import H1PolarWalkA
 from data_driven_legged_locomotion.agents.h1_walk import FNOStateSpace, OfflineAR2Service
 from data_driven_legged_locomotion.agents.h1_walk import MujocoMPCServiceV2 as MujocoMPCService
 from data_driven_legged_locomotion.common import MujocoEnvironment, ServiceSet, GreedyMaxEntropyCrowdsouring
-from data_driven_legged_locomotion.maps.h1_walk import Map, Cylinder, SlidingWall
+from data_driven_legged_locomotion.maps.h1_walk import Map, Cylinder, SlidingWall, Table, Wall, Door, Lamp, Shelf, TV, Couch, Bookshelf, living_room_obstacles
 from data_driven_legged_locomotion.tasks.h1_walk import H1WalkEnvironment, H1WalkMapEnvironment, H1TrackCost, h1_quadratic_objective as h1_walk_cost
 from data_driven_legged_locomotion.utils import CsvFormatter, GlobalPlanner
 from data_driven_legged_locomotion.utils.paths import MA_filter
+from data_driven_legged_locomotion.utils.quaternions import yaw_to_quat
 
 from data_driven_legged_locomotion.agents.tdmpc_service import TDMPCService
 
@@ -39,15 +40,21 @@ PP = []
 
 # Environment
 obstacle_list = []
-starting_pos = np.array([5.0, 0.0])
-ending_pos = np.array([6.0, 10.0])
-# obstacle_list.append(Cylinder(np.array([3.0, 3.0])))
-# obstacle_list.append(Cylinder(np.array([5.0, 5.0])))
-obstacle_list.append(SlidingWall(np.array([3.33, 0.0]), np.array([3.33, 3.33]), np.array([0.0, 3.33])))
-obstacle_list.append(SlidingWall(np.array([6.66, 0.0]), np.array([6.66, 3.33]), np.array([0.0, 3.33])))
-obstacle_list.append(SlidingWall(np.array([0.0, 6.66]), np.array([3.33, 6.66]), np.array([3.33, 0.0])))
-map = Map(obstacles=obstacle_list)
-env = H1WalkMapEnvironment(map, starting_pos=starting_pos)
+starting_pos = np.array([2.0, 1.0])
+starting_quat = yaw_to_quat(np.pi)
+ending_pos = np.array([7.0, 4.0])
+# obstacle_list.append(Door(np.array([5.0, 5.0]), quat=yaw_to_quat(0.0), shift_yaw=np.pi))
+# obstacle_list.append(Door(np.array([5.0, 5.0]), quat=yaw_to_quat(np.pi), shift_yaw=-np.pi))
+#obstacle_list.append(Bookshelf(np.array([3.0, 3.0])))
+# obstacle_list.append(Wall(start_pos=np.array([0.0, 0.0]), end_pos=np.array([0.0, 10.0])))
+# obstacle_list.append(Wall(start_pos=np.array([6.0, 0.0]), end_pos=np.array([6.0, 10.0])))
+# obstacle_list.append(Wall(start_pos=np.array([0.0, 0.0]), end_pos=np.array([6.0, 0.0])))
+# obstacle_list.append(Wall(start_pos=np.array([0.0, 10.0]), end_pos=np.array([6.0, 10.0])))
+# obstacle_list.append(SlidingWall(np.array([3.33, 0.0]), np.array([3.33, 3.33]), np.array([0.0, 3.33])))
+# obstacle_list.append(SlidingWall(np.array([6.66, 0.0]), np.array([6.66, 3.33]), np.array([0.0, 3.33])))
+# obstacle_list.append(SlidingWall(np.array([0.0, 6.66]), np.array([3.33, 6.66]), np.array([3.33, 0.0])))
+map = Map(obstacles=living_room_obstacles)
+env = H1WalkMapEnvironment(map, starting_pos=starting_pos, starting_quat=starting_quat)
 model = env.model
 global_planner = GlobalPlanner(map, starting_pos, ending_pos)
 global_planner.plot_cost()
@@ -157,6 +164,7 @@ def plot_sequence():
     ax.add_patch(circle2)
   plt.pause(0.0001)
 
+path_updated = False
 
 with env.launch_passive_viewer() as viewer:
   with media.VideoWriter(video_path, fps=video_fps, shape=video_resolution) as video:
@@ -180,15 +188,24 @@ with env.launch_passive_viewer() as viewer:
       
       # Update fno
       if i % downsample_factor == 0:
-          last_fno[1] = last_fno[0]
-          last_fno[0] = H1WalkEnvironment.get_fno_from_delta(env.data.qpos, qpos_old, model_timestep)
-          qpos_old = env.data.qpos[:7][:]
-      if env.data.qpos[1] > 2.5:
+        last_fno[1] = last_fno[0]
+        last_fno[0] = H1WalkEnvironment.get_fno_from_delta(env.data.qpos, qpos_old, model_timestep)
+        qpos_old = env.data.qpos[:7][:]
+      if env.data.qpos[0] > 2.75:
         env.trigger()
+      if np.all([obs.transition_end for obs in map.dynamic_obstacles()]) and not path_updated:
+        print("Updating path")
+        global_planner.update_start_pos(env.data.qpos[:2])
+        path = global_planner.get_path()
+        path = MA_filter(path)
+        cost = H1TrackCost(env, path)
+        crowdsourcing = GreedyMaxEntropyCrowdsouring(ss, services, cost)
+        global_planner.plot_cost()
+        path_updated = True  
       
       # Render video
       if frame_count < env.time * video_fps:
-          renderer.update_scene(env.data, camera="top")
+          renderer.update_scene(env.data, camera="pelvis")
           pixels = renderer.render()
           video.add_image(pixels)
           frame_count += 1

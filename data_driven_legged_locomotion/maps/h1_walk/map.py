@@ -230,7 +230,7 @@ class Table(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 1.0
+        bump_radius = 0.5
         r = np.linalg.norm(pos - self.pos)
         if r < self.radius:
             return COST_HIGH
@@ -379,7 +379,7 @@ class Bookshelf(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.5 + self.width / 2
+        bump_radius = 0.55 + self.width
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
@@ -421,7 +421,7 @@ class Couch(MeshObstacle):
         Returns:
             float: The computed cost.
         """
-        bump_radius = 0.5 + self.width / 2
+        bump_radius = 0.52 + self.width / 2
         current_yaw = self.yaw
         versor = np.array([np.cos(current_yaw), np.sin(current_yaw)])
         normal = np.array([-versor[1], versor[0]])
@@ -490,7 +490,7 @@ class Door(DynamicMeshObstacle):
             self.transition_end = True
             return
         direction = np.sign(self.shift_yaw)
-        self.rotated_yaw += direction * delta_t * 1.0
+        self.rotated_yaw += direction * delta_t * 1.5
         body = model.body(f"{self.name}_{self.id}_door")
         body.quat = scipy.spatial.transform.Rotation.from_euler('z', self.yaw + self.rotated_yaw).as_quat(scalar_first=True)
     
