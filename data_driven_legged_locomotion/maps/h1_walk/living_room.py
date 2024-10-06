@@ -19,7 +19,8 @@ living_room_obstacles = [
     Door(pos=np.array([5.0, 2.0]), quat=yaw_to_quat(np.pi/6), shift_yaw=-np.pi*2/3),
     Couch(np.array([2.5, 1.9])),
     TV(np.array([2.5, 0.035])),
-    Lamp(np.array([4.0, 1.0])),
+    Pouf(np.array([4.0, 1.0])),
+    #Lamp(np.array([4.0, 1.0])),
     
     # Middle room
     Table(np.array([2.5, 4.5])),
@@ -27,5 +28,6 @@ living_room_obstacles = [
     
     # Upper room
     Shelf(pos = top_mean - np.array([0.0, 0.07])),
+    Lamp(top_left + np.array([0.5, -0.5])),
     Door(pos=np.array([5.0, 2.0 + door_length*2 + 3.0]), quat=yaw_to_quat(np.pi/2), shift_yaw=np.pi*2/3),
 ]
