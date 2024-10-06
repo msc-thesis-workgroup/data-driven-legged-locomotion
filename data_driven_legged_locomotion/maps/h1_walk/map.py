@@ -269,6 +269,38 @@ class Lamp(MeshObstacle):
         elif r < self.radius + bump_radius:
             return COST_HIGH * (1.0 - (r - self.radius) / bump_radius)
         return 0.0
+    
+class Pouf(MeshObstacle):
+    def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
+        """
+        Initializes the Lamp class.
+
+        Args:
+            pos (np.ndarray): The position of the lamp.
+        """
+        super().__init__(pos, quat)
+        self.xml_path = pathlib.Path(__file__).parent / "obstacles" / "pouf" / "pouf.xml"
+        self.resource_dir = self.xml_path.parent
+        self.name = 'pouf'
+        self.radius = 0.5
+
+    def cost(self, pos: np.ndarray) -> float:
+        """
+        Computes the cost associated with the given position.
+
+        Args:
+            pos (np.ndarray): The position for which to compute the cost.
+
+        Returns:
+            float: The computed cost.
+        """
+        bump_radius = 0.5
+        r = np.linalg.norm(pos - self.pos)
+        if r < self.radius:
+            return COST_HIGH
+        elif r < self.radius + bump_radius:
+            return COST_HIGH * (1.0 - (r - self.radius) / bump_radius)
+        return 0.0
 
 class Shelf(MeshObstacle):
     def __init__(self, pos: np.ndarray, quat: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0])):
@@ -594,7 +626,7 @@ class Map:
         """
         if obstacles is None:
             obstacles = []
-        self.obstacles = {}
+        self.obstacles: dict[str, list[Obstacle]] = {}
         self.extreme_points = extreme_points
         for obs in obstacles:
             if not isinstance(obs, Obstacle):
