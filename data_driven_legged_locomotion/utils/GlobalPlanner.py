@@ -21,21 +21,31 @@ class GlobalPlanner:
     
     def plot_cost(self):
         path = self.get_path()
-        X, Y = np.meshgrid(np.linspace(-1, 11, 100), np.linspace(-1, 11, 100))
+        X, Y = np.meshgrid(np.linspace(-1, 8, 100), np.linspace(-1, 8, 100))
         z = np.array([self._cost_func(np.array([x,y])) for x,y in zip(np.ravel(X), np.ravel(Y))])
         Z = z.reshape(X.shape)
         grad = np.gradient(Z)
         fig_3d = plt.figure()
         ax = fig_3d.add_subplot(projection='3d')
         ax.plot_surface(X, Y, Z)
+        
         fig_grad = plt.figure()
         ax = fig_grad.add_subplot()
         ax.quiver(X, Y, -grad[1], -grad[0], angles='xy')
         ax.plot(path[:,0], path[:,1], 'r')
-        fig_heatmap = plt.figure()
+        plt.xlabel("x [m]")
+        plt.ylabel("y [m]")
+        
+        fig_heatmap = plt.figure(figsize=(13, 10))
         ax = fig_heatmap.add_subplot()
-        ax.imshow(Z, extent=[-1, 11, -1, 11], origin='lower')
-        ax.plot(path[:,0], path[:,1], 'r')
+        heatmap = ax.imshow(Z, extent=[-1, 8, -1, 8], origin='lower')
+        ax.plot(path[:,0], path[:,1], 'r', label='Planned path')
+        ax.scatter(self.start_pos[0], self.start_pos[1], c='g', label='Start', zorder=10)
+        ax.scatter(self.goal_pos[0], self.goal_pos[1], c='r', label='Goal', zorder=10)
+        plt.colorbar(heatmap, label='Cost')
+        plt.legend()
+        plt.xlabel("x [m]")
+        plt.ylabel("y [m]")
         plt.show()
         return fig_3d, fig_grad, fig_heatmap
     
