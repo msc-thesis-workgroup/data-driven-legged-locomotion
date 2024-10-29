@@ -196,7 +196,7 @@ class Cost:
                 np.ndarray: The cost for each state in x.
             
             """
-            r = np.array([10.0, 10.0])
+            r = np.array([9.0,9.0])
             costs = 30*np.exp(np.sqrt( ((x[0] - r[0])/4)**2 + ((x[1] - r[1])/4)**2 ))
 
             # z_mean = np.mean(x[2])

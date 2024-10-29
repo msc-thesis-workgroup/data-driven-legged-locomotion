@@ -31,51 +31,65 @@ env = H1WalkEnvironment()
 ss = env.ss
 
 # Define obstacles positions and sizes
+# obstacle_positions = [
+# 	[2.2, 0.5, 0],  # Position of the first obstacle
+# 	[2.6, 1.5, 0],  # Position of the second obstacle
+# 	[2.9, 2.5, 0],  # Position of the third obstacle
+# 	[3.5, 3.5, 0],  # Position of the ninth obstacle
+# 	[3.5, 4.2, 0],  # Position of the first obstacle
+# 	[4.0, 4.5, 0],  # Position of the second obstacle
+#     [4.5, 5.2, 0],  # Position of the second obstacle
+# 	[5.5, 5.6, 0],  # Position of the third obstacle
+# 	[6.5, 5.9, 0],  # Position of the fourth obstacle
+# 	[7.5, 6.3, 0],  # Position of the fifth obstacle
+
+# ]
+# obstacle_sizes = [
+# 	[0.7, 0.7, 3],  # Size of the first obstacle
+# 	[0.7, 0.7, 3],  # Size of the first obstacle
+# 	[0.7, 0.7, 3],  # Size of the first obstacle
+# 	[0.7, 0.7, 3],  # Size of the first obstacle
+#     [0.7, 0.7, 4],  # Size of the second obstacle
+# 	[0.7, 0.7, 5],  # Size of the third obstacle
+# 	[0.7, 0.7, 6],  # Size of the fourth obstacle
+# 	[0.7, 0.7, 3],  # Size of the fifth obstacle
+# 	[0.7, 0.7, 4],  # Size of the sixth obstacle
+# 	[0.7, 0.7, 5],  # Size of the seventh obstacle
+# ]
+# obstacle_rgba = [
+#     [0, 1, 0, 1],  # Green for the first obstacle
+# 	[0, 0, 1, 1],  # Blue for the second obstacle
+# 	[1, 1, 0, 1],  # Yellow for the third obstacle
+# 	[1, 0, 1, 1],  # Magenta for the fourth obstacle
+# 	[0, 1, 0, 1],  # Green for the fifth obstacle
+# 	[0, 0, 1, 1],  # Blue for the sixth obstacle
+# 	[1, 1, 0, 1],  # Yellow for the seventh obstacle
+# 	[1, 0, 1, 1],  # Magenta for the eighth obstacle
+# 	[0, 1, 0, 1],  # Green for the ninth obstacle
+# 	[0, 0, 1, 1],  # Blue for the tenth obstacle
+# ]
+
+
+# put 4 obstacles in the diagonal of the path
 obstacle_positions = [
-	[2.2, 0.5, 0],  # Position of the first obstacle
-	[2.6, 1.5, 0],  # Position of the second obstacle
-	[2.9, 2.5, 0],  # Position of the third obstacle
-	[3.5, 3.5, 0],  # Position of the ninth obstacle
-	[3.5, 4.2, 0],  # Position of the first obstacle
-	[4.0, 4.5, 0],  # Position of the second obstacle
-    [4.5, 5.2, 0],  # Position of the second obstacle
-	[5.5, 5.6, 0],  # Position of the third obstacle
-	[6.5, 5.9, 0],  # Position of the fourth obstacle
-	[7.5, 6.3, 0],  # Position of the fifth obstacle
-	# [3.5, 2.0, 0],  # Position of the fifth obstacle
-	# [4.5, 2.0, 0],  # Position of the sixth obstacle
-	# [5.5, 2.0, 0],  # Position of the seventh obstacle
-	# [6.5, 2.0, 0],  # Position of the eighth obstacle
-	
-	
-	
+	[2, 2, 0],  # Position of the second obstacle
+	[3, 3, 0],  # Position of the ninth obstacle
+	[4, 4, 0],  # Position of the first obstacle
+	[5, 5, 0],  # Position of the second obstacle
 ]
+
 obstacle_sizes = [
 	[0.7, 0.7, 3],  # Size of the first obstacle
 	[0.7, 0.7, 3],  # Size of the first obstacle
 	[0.7, 0.7, 3],  # Size of the first obstacle
 	[0.7, 0.7, 3],  # Size of the first obstacle
-    [0.7, 0.7, 4],  # Size of the second obstacle
-	[0.7, 0.7, 5],  # Size of the third obstacle
-	[0.7, 0.7, 6],  # Size of the fourth obstacle
-	[0.7, 0.7, 3],  # Size of the fifth obstacle
-	[0.7, 0.7, 4],  # Size of the sixth obstacle
-	[0.7, 0.7, 5],  # Size of the seventh obstacle
-	# [0.7, 0.7, 6],  # Size of the eighth obstacle
-	# [0.7, 0.7, 3],  # Size of the ninth obstacle
-	# [0.7, 0.7, 4],  # Size of the tenth obstacle
 ]
+
 obstacle_rgba = [
-    [0, 1, 0, 1],  # Green for the first obstacle
 	[0, 0, 1, 1],  # Blue for the second obstacle
-	[1, 1, 0, 1],  # Yellow for the third obstacle
-	[1, 0, 1, 1],  # Magenta for the fourth obstacle
-	[0, 1, 0, 1],  # Green for the fifth obstacle
-	[0, 0, 1, 1],  # Blue for the sixth obstacle
-	[1, 1, 0, 1],  # Yellow for the seventh obstacle
-	[1, 0, 1, 1],  # Magenta for the eighth obstacle
 	[0, 1, 0, 1],  # Green for the ninth obstacle
-	[0, 0, 1, 1],  # Blue for the tenth obstacle
+	[1, 0, 0, 1],  # Red for the first obstacle
+	[1, 1, 0, 1],  # Yellow for the second obstacle
 ]
 
 # Create obstacles
@@ -89,7 +103,7 @@ cost = cost_obj.get_cost_function()
 # Home position
 home_position = np.array([
     0, 0, 0.98,
-    0.7071068, 0, 0, 0.7071068, 			# 0.7071068, 0, 0, 0.7071068,
+    1, 0, 0, 0,
     0, 0, -0.4, 0.8, -0.4,
     0, 0, -0.4, 0.8, -0.4,
     0,
@@ -109,16 +123,16 @@ frame_count = 0
 current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 video_path = Path(__file__).parent.parent / "videos" / f"h1_walk_{current_datetime}.mp4"
 if not video_path.parent.exists():
-		video_path.parent.mkdir()
+	video_path.parent.mkdir()
 renderer = mujoco.Renderer(model, height=video_resolution[0], width=video_resolution[1])
 
 # Defining Services
-variances = np.ones(ss.n_states) * 0.000001
+variances = np.ones(ss.n_states) * 0.001
 
 FRAME_SKIP = 1
-AGENT_HORIZON = 50
+AGENT_HORIZON = 1
 N_SAMPLES = 100
-DELTA_STEP = 0.003
+DELTA_STEP = 0.001
 hybrid_service = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
 services.addService(hybrid_service)
 hybrid_service_2 = HybridTDMPCService(ss, model, variances=variances, agent_horizon=AGENT_HORIZON, frame_skip=FRAME_SKIP, delta_step=DELTA_STEP)
@@ -222,15 +236,9 @@ def get_control_without_crowdsourcing(env):
 			state[1] += DELTA_STEP
 		log_row.append(list(state))
 		costs.append(cost(state, 0))
-
-		
+				
 	service_index = np.argmin(costs)
 	
-	# CLEAN TRAJECTORY (ULTRA CHEATING)
-	# if old_agent_index == 0:
-	# 	service_index = 0
-		
-
 	print(f"[DEBUG] Service index: {service_index}")
 	log_row.append(service_index)
 
@@ -253,12 +261,6 @@ def get_control_without_crowdsourcing(env):
 	u = winner_service.get_control(x, t=env.time) # t is the same time of .initialize(x, time=env.time)
 	
 	return u
-
-
-
-
-
-
 
 def get_next_state(env: H1WalkEnvironment) -> np.ndarray:
 	x = env.get_state()
@@ -302,8 +304,9 @@ with env.launch_passive_viewer() as viewer:
 			
 			# Sol 1
 			temp = old_agent_index
-			#u = get_control(env)
-			u = get_control_without_crowdsourcing(env)
+			u = get_control(env)
+			#u = get_control_without_crowdsourcing(env)
+			#u = get_control_simple_model(env)
 			log_row.append(list(u))
 			env.step(u)
 
